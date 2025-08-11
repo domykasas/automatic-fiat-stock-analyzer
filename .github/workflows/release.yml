@@ -35,36 +35,61 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build executable
+      - name: Build executable (Windows/Linux)
+        if: ${{ runner.os != 'macOS' }}
         run: |
           pyinstaller --name FiatTradeCalculator --onefile calculator.py
 
-      - name: Archive artifact
-        if: ${{ runner.os != 'Windows' }}
+      - name: Build app bundle (macOS)
+        if: ${{ runner.os == 'macOS' }}
+        run: |
+          pyinstaller --name FiatTradeCalculator --windowed calculator.py
+
+      - name: Package artifact (Linux)
+        if: ${{ runner.os == 'Linux' }}
         run: |
           mkdir -p dist_pkg
           cp dist/FiatTradeCalculator dist_pkg/
-          tar -C dist_pkg -czf FiatTradeCalculator-${{ runner.os }}-x64.tar.gz .
+          tar -C dist_pkg -czf FiatTradeCalculator-Linux-x64.tar.gz .
 
-      - name: Archive artifact (Windows)
+      - name: Package artifacts (Windows)
         if: ${{ runner.os == 'Windows' }}
         run: |
+          copy dist/FiatTradeCalculator.exe FiatTradeCalculator-Windows-x64.exe
           powershell -Command "Compress-Archive -Path dist/FiatTradeCalculator.exe -DestinationPath FiatTradeCalculator-Windows-x64.zip"
 
-      - name: Upload artifact (non-Windows)
-        if: ${{ runner.os != 'Windows' }}
+      - name: Package artifacts (macOS)
+        if: ${{ runner.os == 'macOS' }}
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent dist/FiatTradeCalculator.app FiatTradeCalculator-macOS-x64.zip
+          hdiutil create -volname "FiatTradeCalculator" -srcfolder "dist/FiatTradeCalculator.app" -ov -format UDZO FiatTradeCalculator-macOS-x64.dmg
+
+      - name: Upload Linux artifact
+        if: ${{ runner.os == 'Linux' }}
         uses: actions/upload-artifact@v4
         with:
-          name: FiatTradeCalculator-${{ runner.os }}-x64
-          path: FiatTradeCalculator-${{ runner.os }}-x64.tar.gz
+          name: FiatTradeCalculator-Linux-x64
+          path: FiatTradeCalculator-Linux-x64.tar.gz
           if-no-files-found: error
 
-      - name: Upload artifact (Windows)
+      - name: Upload Windows artifacts
         if: ${{ runner.os == 'Windows' }}
         uses: actions/upload-artifact@v4
         with:
-          name: FiatTradeCalculator-${{ runner.os }}-x64
-          path: FiatTradeCalculator-Windows-x64.zip
+          name: FiatTradeCalculator-Windows-x64
+          path: |
+            FiatTradeCalculator-Windows-x64.zip
+            FiatTradeCalculator-Windows-x64.exe
+          if-no-files-found: error
+
+      - name: Upload macOS artifacts
+        if: ${{ runner.os == 'macOS' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: FiatTradeCalculator-macOS-x64
+          path: |
+            FiatTradeCalculator-macOS-x64.zip
+            FiatTradeCalculator-macOS-x64.dmg
           if-no-files-found: error
 
   release:
@@ -89,8 +114,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/**/FiatTradeCalculator-*-x64.tar.gz
+            artifacts/**/FiatTradeCalculator-Linux-x64.tar.gz
             artifacts/**/FiatTradeCalculator-Windows-x64.zip
+            artifacts/**/FiatTradeCalculator-Windows-x64.exe
+            artifacts/**/FiatTradeCalculator-macOS-x64.zip
+            artifacts/**/FiatTradeCalculator-macOS-x64.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -103,7 +131,10 @@ jobs:
           make_latest: true
           name: Latest binaries
           files: |
-            artifacts/**/FiatTradeCalculator-*-x64.tar.gz
+            artifacts/**/FiatTradeCalculator-Linux-x64.tar.gz
             artifacts/**/FiatTradeCalculator-Windows-x64.zip
+            artifacts/**/FiatTradeCalculator-Windows-x64.exe
+            artifacts/**/FiatTradeCalculator-macOS-x64.zip
+            artifacts/**/FiatTradeCalculator-macOS-x64.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

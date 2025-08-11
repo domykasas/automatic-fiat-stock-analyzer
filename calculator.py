@@ -263,7 +263,7 @@ def analyze_stock_auto(ticker):
         }
 
 def auto_analyze_stocks(progress_callback=None):
-    """Automatically analyze multiple stocks and return ranked results"""
+    """Automatically analyze multiple stocks and return ranked results (include errors)."""
     stocks_to_analyze = get_sp500_stocks()
     
     results = []
@@ -291,11 +291,14 @@ def auto_analyze_stocks(progress_callback=None):
                 'status': 'error'
             })
     
-    # Filter successful results and sort by score
-    successful_results = [r for r in results if r['status'] == 'success']
-    successful_results.sort(key=lambda x: x['score'], reverse=True)
-    
-    return successful_results
+    # Sort results: successes first by score desc, then errors
+    def sort_key(item):
+        is_error = 1 if item.get('status') != 'success' else 0
+        score_value = item.get('score', 0)
+        return (is_error, -score_value)
+
+    results.sort(key=sort_key)
+    return results
 
 def main_gui():
     main_layout = [
@@ -469,10 +472,10 @@ def main_gui():
     return
 
 def show_results_window(results):
-    """Display analysis results in a new window"""
+    """Display analysis results in a new window. Always shows something, including errors if no successes."""
     if not results:
-        sg.popup("No results to display")
-        return
+        # Extremely unlikely, but show an empty state in-window instead of a popup
+        results = []
     
     # Create results layout
     results_layout = [
@@ -481,9 +484,10 @@ def show_results_window(results):
         [sg.HorizontalSeparator()],
     ]
     
-    # Add top results
+    # Add top results (include errors if present)
+    any_success = any(r.get('status') == 'success' for r in results)
     for i, result in enumerate(results[:20]):
-        if result['status'] == 'success':
+        if result.get('status') == 'success':
             ticker = result['ticker']
             score = result['score']
             data = result['result']
@@ -528,6 +532,22 @@ def show_results_window(results):
                 ])
             
             results_layout.append([sg.HorizontalSeparator()])
+        else:
+            # Show error entries when present
+            ticker = result.get('ticker', 'N/A')
+            error_message = result.get('result', 'Unknown error')
+            results_layout.append([
+                sg.Text(f"{i+1}. ❌ {ticker} - Error", text_color="#800000", font=("Helvetica", 10, "bold")),
+                sg.Text("Score: 0/3", text_color="blue")
+            ])
+            results_layout.append([
+                sg.Text(f"    {error_message}", text_color="gray", font=("Helvetica", 8))
+            ])
+            results_layout.append([sg.HorizontalSeparator()])
+
+    if not any_success:
+        # Add a small note if showing only errors
+        results_layout.insert(0, [sg.Text("ℹ️ No successful analyses. Showing error details below.", text_color="orange")])
     
     results_layout.append([sg.Button("Close")])
     
