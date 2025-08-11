@@ -5,6 +5,9 @@ on:
     branches: [ main ]
     tags: [ 'v*' ]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build binaries (${{ matrix.os }})
@@ -96,6 +99,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
+          target_commitish: ${{ github.sha }}
+          make_latest: true
           name: Latest binaries
           files: |
             artifacts/**/FiatTradeCalculator-*-x64.tar.gz
