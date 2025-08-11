@@ -15,6 +15,7 @@ from scipy.interpolate import interp1d
 import numpy as np
 import threading
 import requests
+from curl_cffi import requests as cfr
 import time
 import random
 
@@ -67,8 +68,8 @@ def filter_dates(dates):
     raise ValueError("No date 45 days or more in the future found.")
 
 
-# Create a persistent session with a realistic User-Agent for yfinance
-YF_SESSION = requests.Session()
+# Create a persistent curl_cffi session (required by newer Yahoo stack)
+YF_SESSION = cfr.Session(impersonate="chrome124")
 YF_SESSION.headers.update({
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
