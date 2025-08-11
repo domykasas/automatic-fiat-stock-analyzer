@@ -389,14 +389,18 @@ def auto_analyze_stocks(progress_callback=None):
     print(f"CLI: Analysis finished in {elapsed_s:.1f}s. {len(results)} results.")
     return results
 
-def main_gui():
-    # Use a light theme for better contrast/readability
+def main_gui(theme_choice: str = 'Light'):
+    # Apply selected theme
     try:
-        sg.theme('LightGrey1')
+        if theme_choice.lower().startswith('dark'):
+            sg.theme('DarkGrey13')
+        else:
+            sg.theme('LightGrey1')
     except Exception:
         pass
 
     main_layout = [
+        [sg.Menu([["View", ["Theme::Light", "Theme::Dark"]]])],
         [sg.Text("🚀 Automatic Fiat Stock Analyzer", font=("Helvetica", 16), justification="center")],
         [sg.Text("This tool will automatically analyze popular stocks and find the best opportunities.", justification="center")],
         [sg.Text("📊 Stocks to analyze: ~100 S&P 500 companies", font=("Helvetica", 10), text_color="blue")],
@@ -406,13 +410,23 @@ def main_gui():
         [sg.Text("💡 Tip: Keep this window open during analysis", font=("Helvetica", 9), text_color="black")]
     ]
     
-    window = sg.Window("🚀 Automatic Fiat Stock Analyzer", main_layout, size=(550, 350))
+    window = sg.Window("🚀 Automatic Fiat Stock Analyzer", main_layout, size=(600, 380))
     
     while True:
         event, values = window.read()
         if event in (sg.WINDOW_CLOSED, "❌ Exit"):
             print("CLI: Exiting program...")
             break
+
+        # Theme switching
+        if event == "Theme::Light":
+            window.close()
+            main_gui('Light')
+            return
+        if event == "Theme::Dark":
+            window.close()
+            main_gui('Dark')
+            return
 
         if event == "🚀 Start Auto Analysis":
             print("CLI: 🚀 Start Auto Analysis button pressed!")
@@ -429,6 +443,7 @@ def main_gui():
             # Disable the button to prevent multiple clicks
             window["🚀 Start Auto Analysis"].update(disabled=True)
             window["🚀 Start Auto Analysis"].update("⏳ Analysis Running...")
+            window["status"].update("⏳ Analysis Running...", text_color="#D2691E")
             
             # Show immediate loading indicator
             print("CLI: Loading indicator started...")
@@ -471,15 +486,16 @@ def main_gui():
             thread = threading.Thread(target=worker, daemon=True)
             thread.start()
             
-            # Show progress window with animated elements
+            # Show progress window with visible progress bar
             progress_layout = [
                 [sg.Text("🔄", font=("Arial", 24), key="spinner")],
                 [sg.Text("Analyzing...", key="status_text", size=(50, 2))],
+                [sg.ProgressBar(100, orientation='h', size=(40, 20), key='progress')],
                 [sg.Text("📱 Check your terminal/console for detailed CLI updates", font=("Helvetica", 9), text_color="blue")]
             ]
-            progress_window = sg.Window("Analysis Progress", progress_layout, modal=True, finalize=True, size=(480, 180))
+            progress_window = sg.Window("Analysis Progress", progress_layout, modal=True, finalize=True, size=(520, 220))
             
-            # Animated status updates (no progress bar)
+            # Animated status updates + progress bar
             spinner_chars = ["🔄", "⚡", "📊", "💹", "📈", "🎯"]
             spinner_idx = 0
             start_time = time.time()
@@ -489,6 +505,8 @@ def main_gui():
                     break
                 progress_window['spinner'].update(spinner_chars[spinner_idx])
                 spinner_idx = (spinner_idx + 1) % len(spinner_chars)
+                if 'progress' in result_holder:
+                    progress_window['progress'].update(result_holder['progress'])
                 if 'status' in result_holder:
                     elapsed = int(time.time() - start_time)
                     progress_window['status_text'].update(f"{result_holder['status']} | Elapsed: {elapsed}s")
