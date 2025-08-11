@@ -45,6 +45,9 @@ numpy==2.1
 scipy==1.15.1
 yfinance==0.2.54
 requests==2.31.0
+curl_cffi==0.6.2
+pandas==2.2.2
+lxml==5.2.2
 ```
 
 ### 🛠️ Install

@@ -406,7 +406,7 @@ def auto_analyze_stocks(progress_callback=None, list_limit: int | None = None):
                 else:
                     print(f"CLI: ❌ {ticker} error={result.get('result')}")
             else:
-                print(f"CLI: ⏭️ Skipping {ticker} (no options or fetch failure)")
+                print(f"CLI: ⏭️ Skipping {ticker}: No listed options on Yahoo Finance or data fetch failed (rate limit)")
             
         except Exception as e:
             print(f"CLI: ❌ {ticker} exception={e}")
@@ -452,6 +452,7 @@ def main_gui(theme_choice: str = 'Dark'):
     is_dark = theme_choice.lower().startswith('dark')
     tip_color = "#EEEEEE" if is_dark else "black"
     accent_color = "#9CDCFE" if is_dark else "#0A66C2"
+    status_color = "#FFD700" if is_dark else "#8B4513"
 
     main_layout = [
         [sg.Menu([["View", ["Light theme::Light", "Dark theme::Dark"]]])],
@@ -465,7 +466,7 @@ def main_gui(theme_choice: str = 'Dark'):
         ],
         [sg.Text(_format_eta_text(100), key="eta", font=("Helvetica", 10), text_color="orange")],
         [sg.Button("🚀 Start Auto Analysis", size=(20, 2), button_color=("white", "#2E8B57")), sg.Button("❌ Exit")],
-        [sg.Text("", key="status", size=(60, 2))],
+        [sg.Text("", key="status", size=(60, 2), text_color=status_color)],
         [sg.Text("💡 Tip: Keep this window open during analysis", font=("Helvetica", 9), text_color=tip_color)]
     ]
     
@@ -509,8 +510,8 @@ def main_gui(theme_choice: str = 'Dark'):
             
             # Disable the button to prevent multiple clicks
             window["🚀 Start Auto Analysis"].update(disabled=True)
-            window["🚀 Start Auto Analysis"].update("⏳ Analysis Running...")
-            window["status"].update("⏳ Analysis Running...", text_color="#D2691E")
+            window["🚀 Start Auto Analysis"].update("⏳ Analysis running...")
+            window["status"].update("⏳ Analysis running...", text_color=status_color)
             
             # Show immediate loading indicator
             print("CLI: Loading indicator started...")
