@@ -342,6 +342,7 @@ def auto_analyze_stocks(progress_callback=None):
     
     results = []
     total_stocks = len(stocks_to_analyze)
+    analysis_start_ts = time.perf_counter()
     
     for i, ticker in enumerate(stocks_to_analyze):
         try:
@@ -349,6 +350,7 @@ def auto_analyze_stocks(progress_callback=None):
             if progress_callback:
                 progress = int((i / total_stocks) * 100)
                 progress_callback(progress, f"Analyzing {ticker}... ({i+1}/{total_stocks})")
+            print(f"CLI: Analyzing {ticker} ({i+1}/{total_stocks})")
             
             # Add delay with small jitter to avoid rate limiting
             if i > 0:
@@ -357,6 +359,15 @@ def auto_analyze_stocks(progress_callback=None):
             
             result = analyze_stock_auto(ticker)
             results.append(result)
+            if result.get('status') == 'success':
+                data = result.get('result', {})
+                print(
+                    f"CLI: ✅ {ticker} score={result.get('score')} "
+                    f"vol={data.get('avg_volume')} ivrv={data.get('iv30_rv30')} "
+                    f"slope={data.get('ts_slope_0_45')} move={data.get('expected_move')}"
+                )
+            else:
+                print(f"CLI: ❌ {ticker} error={result.get('result')}")
             
         except Exception as e:
             results.append({
@@ -365,6 +376,7 @@ def auto_analyze_stocks(progress_callback=None):
                 'score': 0,
                 'status': 'error'
             })
+            print(f"CLI: ❌ {ticker} exception={e}")
     
     # Sort results: successes first by score desc, then errors
     def sort_key(item):
@@ -373,6 +385,8 @@ def auto_analyze_stocks(progress_callback=None):
         return (is_error, -score_value)
 
     results.sort(key=sort_key)
+    elapsed_s = time.perf_counter() - analysis_start_ts
+    print(f"CLI: Analysis finished in {elapsed_s:.1f}s. {len(results)} results.")
     return results
 
 def main_gui():
@@ -389,8 +403,6 @@ def main_gui():
         [sg.Text("⏱️ Estimated time: 30 seconds – 5 minutes (depends on hardware)", font=("Helvetica", 10), text_color="orange")],
         [sg.Button("🚀 Start Auto Analysis", size=(20, 2), button_color=("white", "#2E8B57")), sg.Button("❌ Exit")],
         [sg.Text("", key="status", size=(60, 2))],
-        [sg.Text("", key="loading_text", size=(60, 1), text_color="blue", font=("Helvetica", 10, "bold"))],
-        [sg.ProgressBar(100, orientation='h', size=(50, 20), key='main_progress', visible=False)],
         [sg.Text("💡 Tip: Keep this window open during analysis", font=("Helvetica", 9), text_color="black")]
     ]
     
@@ -429,20 +441,8 @@ def main_gui():
                                   font=('Helvetica', 16),
                                   auto_close_duration=2)
             
-            # Show and animate main progress bar immediately
-            window['main_progress'].update(visible=True)
-            window['main_progress'].update(10)
-            window['loading_text'].update("🔄 Initializing analysis...")
+            # Removed in-window initializing text and progress bar per request
             window.refresh()
-            
-            # Animate progress bar for immediate feedback
-            spinner_chars = ["🔄", "⚡", "📊", "💹", "📈", "🎯"]
-            for i in range(10, 25, 5):
-                spinner = spinner_chars[(i // 5) % len(spinner_chars)]
-                window['main_progress'].update(i)
-                window['loading_text'].update(f"{spinner} Initializing analysis... {i}%")
-                window.refresh()
-                time.sleep(0.1)
             
             # Start analysis in background thread
             result_holder = {}
@@ -474,56 +474,24 @@ def main_gui():
             # Show progress window with animated elements
             progress_layout = [
                 [sg.Text("🔄", font=("Arial", 24), key="spinner")],
-                [sg.Text("🚀 Starting Analysis...", key="progress_text", font=("Helvetica", 12))],
-                [sg.ProgressBar(100, orientation='h', size=(40, 20), key='progress')],
-                [sg.Text("Initializing...", key="status_text", size=(50, 2))],
-                [sg.Text("⏱️ This may take several minutes", font=("Helvetica", 10))],
-                [sg.Text("📱 Check your terminal/console for CLI updates", font=("Helvetica", 9), text_color="blue")]
+                [sg.Text("Analyzing...", key="status_text", size=(50, 2))],
+                [sg.Text("📱 Check your terminal/console for detailed CLI updates", font=("Helvetica", 9), text_color="blue")]
             ]
-            progress_window = sg.Window("Analysis Progress", progress_layout, modal=True, finalize=True, size=(500, 250))
+            progress_window = sg.Window("Analysis Progress", progress_layout, modal=True, finalize=True, size=(480, 180))
             
-            # Animated progress updates
+            # Animated status updates (no progress bar)
             spinner_chars = ["🔄", "⚡", "📊", "💹", "📈", "🎯"]
             spinner_idx = 0
-            last_progress = 0
             start_time = time.time()
-            
-            # Add initial progress simulation to show something is happening
-            progress_window['progress'].update(5)
-            progress_window['status_text'].update("Initializing analysis...")
-            progress_window['progress_text'].update("Progress: 5% Complete")
-            
             while thread.is_alive():
-                event_progress, _ = progress_window.read(timeout=100)
+                event_progress, _ = progress_window.read(timeout=150)
                 if event_progress == sg.WINDOW_CLOSED:
                     break
-                
-                # Update spinner animation
                 progress_window['spinner'].update(spinner_chars[spinner_idx])
                 spinner_idx = (spinner_idx + 1) % len(spinner_chars)
-                
-                # Update progress from worker thread
-                if 'progress' in result_holder and 'status' in result_holder:
-                    current_progress = result_holder['progress']
-                    current_status = result_holder['status']
-                    
-                    if current_progress != last_progress:
-                        progress_window['progress'].update(current_progress)
-                        progress_window['status_text'].update(current_status)
-                        progress_window['progress_text'].update(f"Progress: {current_progress}% Complete")
-                        last_progress = current_progress
-                
-                # Show elapsed time and ensure progress bar moves
-                elapsed = int(time.time() - start_time)
-                if elapsed > 0:
-                    # Simulate some progress if no real progress yet
-                    if last_progress == 0 and elapsed > 2:
-                        simulated_progress = min(15, elapsed * 2)
-                        progress_window['progress'].update(simulated_progress)
-                        progress_window['progress_text'].update(f"Progress: {simulated_progress}% Complete")
-                        progress_window['status_text'].update(f"Elapsed: {elapsed}s | Initializing...")
-                    elif last_progress > 0:
-                        progress_window['status_text'].update(f"Elapsed: {elapsed}s | {current_status if 'status' in result_holder else 'Initializing...'}")
+                if 'status' in result_holder:
+                    elapsed = int(time.time() - start_time)
+                    progress_window['status_text'].update(f"{result_holder['status']} | Elapsed: {elapsed}s")
             
             # Wait for completion
             thread.join(timeout=1)
@@ -553,21 +521,20 @@ def main_gui():
     return
 
 def show_results_window(results):
-    """Display analysis results in a new window. Always shows something, including errors if no successes."""
+    """Display analysis results in a new scrollable window. Always shows something, including errors if no successes."""
     if not results:
-        # Extremely unlikely, but show an empty state in-window instead of a popup
         results = []
-    
-    # Create results layout
-    results_layout = [
+
+    # Build rows for a scrollable area
+    content_rows = [
         [sg.Text("📊 Stock Analysis Results", font=("Helvetica", 16), justification="center")],
-        [sg.Text(f"🏆 Top {min(20, len(results))} Stocks by Score:", font=("Helvetica", 12))],
+        [sg.Text(f"🏆 Top {min(50, len(results))} Stocks by Score:", font=("Helvetica", 12))],
         [sg.HorizontalSeparator()],
     ]
-    
+
     # Add top results (include errors if present)
     any_success = any(r.get('status') == 'success' for r in results)
-    for i, result in enumerate(results[:20]):
+    for i, result in enumerate(results[:50]):
         if result.get('status') == 'success':
             ticker = result['ticker']
             score = result['score']
@@ -591,7 +558,7 @@ def show_results_window(results):
                 color = "#800000"
                 icon = "📉"
             
-            results_layout.append([
+            content_rows.append([
                 sg.Text(f"{i+1}. {icon} {ticker} - {rec}", text_color=color, font=("Helvetica", 10, "bold")),
                 sg.Text(f"Score: {score}/3", text_color="blue")
             ])
@@ -608,32 +575,33 @@ def show_results_window(results):
                 if 'expected_move' in data and data['expected_move']:
                     details.append(f"Move: {data['expected_move']}")
                 
-                results_layout.append([
+                content_rows.append([
                     sg.Text(f"    {' | '.join(details)}", text_color="gray", font=("Helvetica", 8))
                 ])
             
-            results_layout.append([sg.HorizontalSeparator()])
+            content_rows.append([sg.HorizontalSeparator()])
         else:
             # Show error entries when present
             ticker = result.get('ticker', 'N/A')
             error_message = result.get('result', 'Unknown error')
-            results_layout.append([
+            content_rows.append([
                 sg.Text(f"{i+1}. ❌ {ticker} - Error", text_color="#800000", font=("Helvetica", 10, "bold")),
                 sg.Text("Score: 0/3", text_color="blue")
             ])
-            results_layout.append([
+            content_rows.append([
                 sg.Text(f"    {error_message}", text_color="gray", font=("Helvetica", 8))
             ])
-            results_layout.append([sg.HorizontalSeparator()])
+            content_rows.append([sg.HorizontalSeparator()])
 
     if not any_success:
         # Add a small note if showing only errors
-        results_layout.insert(0, [sg.Text("ℹ️ No successful analyses. Showing error details below.", text_color="orange")])
-    
-    results_layout.append([sg.Button("Close")])
-    
-    # Create and show results window
-    results_window = sg.Window("Analysis Results", results_layout, size=(600, 500), modal=True, finalize=True)
+        content_rows.insert(0, [sg.Text("ℹ️ No successful analyses. Showing error details below.", text_color="orange")])
+
+    scrollable = sg.Column(content_rows, scrollable=True, vertical_scroll_only=True, size=(600, 420))
+    layout = [[scrollable], [sg.Button("Close")]]
+
+    # Create and show results window (resizable and scrollable)
+    results_window = sg.Window("Analysis Results", layout, size=(640, 520), modal=True, finalize=True, resizable=True)
     
     while True:
         event_result, _ = results_window.read()
