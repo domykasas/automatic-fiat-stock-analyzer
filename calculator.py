@@ -399,15 +399,18 @@ def main_gui(theme_choice: str = 'Light'):
     except Exception:
         pass
 
+    is_dark = theme_choice.lower().startswith('dark')
+    tip_color = "#EEEEEE" if is_dark else "black"
+
     main_layout = [
-        [sg.Menu([["View", ["Theme::Light", "Theme::Dark"]]])],
+        [sg.Menu([["View", ["Light theme::Light", "Dark theme::Dark"]]])],
         [sg.Text("🚀 Automatic Fiat Stock Analyzer", font=("Helvetica", 16), justification="center")],
         [sg.Text("This tool will automatically analyze popular stocks and find the best opportunities.", justification="center")],
         [sg.Text("📊 Stocks to analyze: ~100 S&P 500 companies", font=("Helvetica", 10), text_color="blue")],
         [sg.Text("⏱️ Estimated time: 30 seconds – 5 minutes (depends on hardware)", font=("Helvetica", 10), text_color="orange")],
         [sg.Button("🚀 Start Auto Analysis", size=(20, 2), button_color=("white", "#2E8B57")), sg.Button("❌ Exit")],
         [sg.Text("", key="status", size=(60, 2))],
-        [sg.Text("💡 Tip: Keep this window open during analysis", font=("Helvetica", 9), text_color="black")]
+        [sg.Text("💡 Tip: Keep this window open during analysis", font=("Helvetica", 9), text_color=tip_color)]
     ]
     
     window = sg.Window("🚀 Automatic Fiat Stock Analyzer", main_layout, size=(600, 380))
@@ -419,11 +422,11 @@ def main_gui(theme_choice: str = 'Light'):
             break
 
         # Theme switching
-        if event == "Theme::Light":
+        if event == "Light theme::Light":
             window.close()
             main_gui('Light')
             return
-        if event == "Theme::Dark":
+        if event == "Dark theme::Dark":
             window.close()
             main_gui('Dark')
             return
