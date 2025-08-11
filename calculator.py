@@ -376,16 +376,22 @@ def auto_analyze_stocks(progress_callback=None):
     return results
 
 def main_gui():
+    # Use a light theme for better contrast/readability
+    try:
+        sg.theme('LightGrey1')
+    except Exception:
+        pass
+
     main_layout = [
         [sg.Text("🚀 Automatic Fiat Stock Analyzer", font=("Helvetica", 16), justification="center")],
         [sg.Text("This tool will automatically analyze popular stocks and find the best opportunities.", justification="center")],
         [sg.Text("📊 Stocks to analyze: ~100 S&P 500 companies", font=("Helvetica", 10), text_color="blue")],
-        [sg.Text("⏱️ Estimated time: 10-15 minutes", font=("Helvetica", 10), text_color="orange")],
-        [sg.Button("🚀 Start Auto Analysis", size=(20, 2), button_color=("white", "green")), sg.Button("❌ Exit")],
+        [sg.Text("⏱️ Estimated time: 30 seconds – 5 minutes (depends on hardware)", font=("Helvetica", 10), text_color="orange")],
+        [sg.Button("🚀 Start Auto Analysis", size=(20, 2), button_color=("white", "#2E8B57")), sg.Button("❌ Exit")],
         [sg.Text("", key="status", size=(60, 2))],
         [sg.Text("", key="loading_text", size=(60, 1), text_color="blue", font=("Helvetica", 10, "bold"))],
         [sg.ProgressBar(100, orientation='h', size=(50, 20), key='main_progress', visible=False)],
-        [sg.Text("💡 Tip: Keep this window open during analysis", font=("Helvetica", 9), text_color="gray")]
+        [sg.Text("💡 Tip: Keep this window open during analysis", font=("Helvetica", 9), text_color="black")]
     ]
     
     window = sg.Window("🚀 Automatic Fiat Stock Analyzer", main_layout, size=(550, 350))
