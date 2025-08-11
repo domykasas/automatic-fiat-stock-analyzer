@@ -451,12 +451,13 @@ def main_gui(theme_choice: str = 'Dark'):
 
     is_dark = theme_choice.lower().startswith('dark')
     tip_color = "#EEEEEE" if is_dark else "black"
+    accent_color = "#9CDCFE" if is_dark else "#0A66C2"
 
     main_layout = [
         [sg.Menu([["View", ["Light theme::Light", "Dark theme::Dark"]]])],
         [sg.Text("🚀 Automatic Fiat Stock Analyzer", font=("Helvetica", 16), justification="center")],
         [sg.Text("This tool will automatically analyze popular stocks and find the best opportunities.", justification="center")],
-        [sg.Text("📊 Stocks to analyze: ~100 S&P 500 companies", font=("Helvetica", 10), text_color="blue")],
+        [sg.Text("📊 Stocks to analyze: ~100 S&P 500 companies", font=("Helvetica", 10), text_color=accent_color)],
         [
             sg.Text("Top tickers to analyze:"),
             sg.Input(default_text="100", key="num_tickers", size=(6,1), enable_events=True, justification='right'),
@@ -563,7 +564,7 @@ def main_gui(theme_choice: str = 'Dark'):
                 [sg.Text("🔄", font=("Arial", 24), key="spinner")],
                 [sg.Text("Analyzing...", key="status_text", size=(50, 2))],
                 [sg.ProgressBar(100, orientation='h', size=(40, 20), key='progress')],
-                [sg.Text("📱 Check your terminal/console for detailed CLI updates", font=("Helvetica", 9), text_color="blue")]
+                [sg.Text("📱 Check your terminal/console for detailed CLI updates", font=("Helvetica", 9), text_color=accent_color)]
             ]
             progress_window = sg.Window("Analysis Progress", progress_layout, modal=True, finalize=True, size=(520, 220))
             
