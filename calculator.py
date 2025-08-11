@@ -372,9 +372,9 @@ def analyze_stock_auto(ticker):
         print(f"CLI: Exception analyzing {ticker}: {e}")
         return None
 
-def auto_analyze_stocks(progress_callback=None):
+def auto_analyze_stocks(progress_callback=None, list_limit: int | None = None):
     """Automatically analyze multiple stocks and return ranked results (include errors)."""
-    stocks_to_analyze = get_sp500_stocks()
+    stocks_to_analyze = get_sp500_stocks(limit=list_limit)
     
     results = []
     total_stocks = len(stocks_to_analyze)
@@ -422,7 +422,24 @@ def auto_analyze_stocks(progress_callback=None):
     print(f"CLI: Analysis finished in {elapsed_s:.1f}s. {len(results)} results.")
     return results
 
-def main_gui(theme_choice: str = 'Light'):
+def _format_eta_text(num_tickers: int) -> str:
+    num = max(1, min(500, int(num_tickers)))
+    # Rough estimate: 1–3 seconds per ticker depending on data/connection
+    min_s = int(num * 1.0 + 5)
+    max_s = int(num * 3.0 + 15)
+
+    def fmt(sec: int) -> str:
+        if sec < 60:
+            return f"{sec}s"
+        mins = sec / 60.0
+        if mins < 10:
+            return f"{mins:.1f}m"
+        return f"{int(round(mins))}m"
+
+    return f"⏱️ Estimated time: ~{fmt(min_s)} – {fmt(max_s)} (depends on hardware/network)"
+
+
+def main_gui(theme_choice: str = 'Dark'):
     # Apply selected theme
     try:
         if theme_choice.lower().startswith('dark'):
@@ -440,13 +457,18 @@ def main_gui(theme_choice: str = 'Light'):
         [sg.Text("🚀 Automatic Fiat Stock Analyzer", font=("Helvetica", 16), justification="center")],
         [sg.Text("This tool will automatically analyze popular stocks and find the best opportunities.", justification="center")],
         [sg.Text("📊 Stocks to analyze: ~100 S&P 500 companies", font=("Helvetica", 10), text_color="blue")],
-        [sg.Text("⏱️ Estimated time: 30 seconds – 5 minutes (depends on hardware)", font=("Helvetica", 10), text_color="orange")],
+        [
+            sg.Text("Top tickers to analyze:"),
+            sg.Input(default_text="100", key="num_tickers", size=(6,1), enable_events=True, justification='right'),
+            sg.Text("(1–500)")
+        ],
+        [sg.Text(_format_eta_text(100), key="eta", font=("Helvetica", 10), text_color="orange")],
         [sg.Button("🚀 Start Auto Analysis", size=(20, 2), button_color=("white", "#2E8B57")), sg.Button("❌ Exit")],
         [sg.Text("", key="status", size=(60, 2))],
         [sg.Text("💡 Tip: Keep this window open during analysis", font=("Helvetica", 9), text_color=tip_color)]
     ]
     
-    window = sg.Window("🚀 Automatic Fiat Stock Analyzer", main_layout, size=(600, 380))
+    window = sg.Window("🚀 Automatic Fiat Stock Analyzer", main_layout, size=(640, 420))
     
     while True:
         event, values = window.read()
@@ -463,6 +485,14 @@ def main_gui(theme_choice: str = 'Light'):
             window.close()
             main_gui('Dark')
             return
+
+        if event == 'num_tickers':
+            try:
+                n = int(values.get('num_tickers') or 0)
+            except Exception:
+                n = 100
+            n = max(1, min(500, n))
+            window['eta'].update(_format_eta_text(n))
 
         if event == "🚀 Start Auto Analysis":
             print("CLI: 🚀 Start Auto Analysis button pressed!")
@@ -510,7 +540,13 @@ def main_gui(theme_choice: str = 'Light'):
                     result_holder['status'] = "Fetching stock list..."
                     result_holder['progress'] = 0
                     
-                    results = auto_analyze_stocks(progress_callback)
+                    # Determine how many tickers to analyze
+                    try:
+                        n = int(values.get('num_tickers') or 100)
+                    except Exception:
+                        n = 100
+                    n = max(1, min(500, n))
+                    results = auto_analyze_stocks(progress_callback, list_limit=n)
                     result_holder['results'] = results
                     result_holder['progress'] = 100
                     result_holder['status'] = "Analysis complete!"
