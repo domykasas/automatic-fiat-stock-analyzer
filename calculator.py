@@ -16,6 +16,7 @@ import numpy as np
 import threading
 import requests
 from curl_cffi import requests as cfr
+import pandas as pd
 import time
 import random
 
@@ -29,23 +30,65 @@ POPULAR_STOCKS = [
     'ON', 'STM', 'NXP', 'ASML', 'TSM', 'UMC', 'SMIC', 'GFS', 'AMBA', 'LSCC', 'XLNX'
 ]
 
-def get_sp500_stocks():
-    """Get S&P 500 stocks from Wikipedia"""
+def normalize_symbol_for_yahoo(symbol: str) -> str:
+    """Normalize ticker symbols for Yahoo Finance (e.g., BRK.B -> BRK-B)."""
+    if not symbol:
+        return symbol
+    symbol = symbol.strip().upper()
+    # Replace dots with dashes for Yahoo style
+    symbol = symbol.replace('.', '-')
+    # Known special cases can be adjusted here if needed
+    return symbol
+
+def get_sp500_stocks(limit: int | None = None):
+    """Get S&P 500 stocks from Wikipedia using pandas and normalize for Yahoo."""
+    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
     try:
-        url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+        # Use pandas to read tables robustly
+        tables = pd.read_html(url, flavor='lxml')
+        table = None
+        for t in tables:
+            if 'Symbol' in t.columns:
+                table = t
+                break
+        if table is not None:
+            symbols = [normalize_symbol_for_yahoo(s) for s in table['Symbol'].astype(str).tolist()]
+            # Deduplicate while preserving order
+            seen = set()
+            cleaned = []
+            for s in symbols:
+                if s and s not in seen:
+                    seen.add(s)
+                    cleaned.append(s)
+            if limit is not None:
+                cleaned = cleaned[:limit]
+            if cleaned:
+                return cleaned
+    except Exception as e:
+        print(f"CLI: Warning: pandas read_html failed: {e}")
+    
+    # Fallback: requests + simple regex, then normalize
+    try:
         response = requests.get(url, timeout=10)
         if response.status_code == 200:
-            # Simple parsing to extract ticker symbols
-            content = response.text
             import re
-            # Look for ticker patterns in the table
-            tickers = re.findall(r'<td><a[^>]*>([A-Z]{1,5})</a></td>', content)
-            if tickers:
-                return tickers[:100]  # Return first 100 stocks
-    except:
-        pass
+            content = response.text
+            tickers = re.findall(r'<td><a[^>]*>([A-Za-z0-9.\-]{1,10})</a></td>', content)
+            symbols = [normalize_symbol_for_yahoo(s) for s in tickers]
+            seen = set()
+            cleaned = []
+            for s in symbols:
+                if s and s not in seen:
+                    seen.add(s)
+                    cleaned.append(s)
+            if limit is not None:
+                cleaned = cleaned[:limit]
+            if cleaned:
+                return cleaned
+    except Exception as e:
+        print(f"CLI: Warning: fallback regex scrape failed: {e}")
     
-    # Fallback to predefined list
+    # Final fallback to predefined list
     return POPULAR_STOCKS
 
 def filter_dates(dates):
@@ -322,19 +365,12 @@ def analyze_stock_auto(ticker):
                 'status': 'success'
             }
         else:
-            return {
-                'ticker': ticker,
-                'result': result,
-                'score': 0,
-                'status': 'error'
-            }
+            # Skip tickers that cannot be analyzed (e.g., no options). Do not surface as errors in the UI list.
+            return None
     except Exception as e:
-        return {
-            'ticker': ticker,
-            'result': str(e),
-            'score': 0,
-            'status': 'error'
-        }
+        # Skip hard exceptions but log to CLI
+        print(f"CLI: Exception analyzing {ticker}: {e}")
+        return None
 
 def auto_analyze_stocks(progress_callback=None):
     """Automatically analyze multiple stocks and return ranked results (include errors)."""
@@ -358,24 +394,21 @@ def auto_analyze_stocks(progress_callback=None):
                 time.sleep(sleep_base + random.uniform(0.0, 0.2))
             
             result = analyze_stock_auto(ticker)
-            results.append(result)
-            if result.get('status') == 'success':
-                data = result.get('result', {})
-                print(
-                    f"CLI: ✅ {ticker} score={result.get('score')} "
-                    f"vol={data.get('avg_volume')} ivrv={data.get('iv30_rv30')} "
-                    f"slope={data.get('ts_slope_0_45')} move={data.get('expected_move')}"
-                )
+            if result is not None:
+                results.append(result)
+                if result.get('status') == 'success':
+                    data = result.get('result', {})
+                    print(
+                        f"CLI: ✅ {ticker} score={result.get('score')} "
+                        f"vol={data.get('avg_volume')} ivrv={data.get('iv30_rv30')} "
+                        f"slope={data.get('ts_slope_0_45')} move={data.get('expected_move')}"
+                    )
+                else:
+                    print(f"CLI: ❌ {ticker} error={result.get('result')}")
             else:
-                print(f"CLI: ❌ {ticker} error={result.get('result')}")
+                print(f"CLI: ⏭️ Skipping {ticker} (no options or fetch failure)")
             
         except Exception as e:
-            results.append({
-                'ticker': ticker,
-                'result': str(e),
-                'score': 0,
-                'status': 'error'
-            })
             print(f"CLI: ❌ {ticker} exception={e}")
     
     # Sort results: successes first by score desc, then errors
