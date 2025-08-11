@@ -16,6 +16,7 @@ import numpy as np
 import threading
 import requests
 import time
+import random
 
 # List of popular stocks to analyze (S&P 500 top stocks + some popular tech stocks)
 POPULAR_STOCKS = [
@@ -64,6 +65,40 @@ def filter_dates(dates):
         return arr
 
     raise ValueError("No date 45 days or more in the future found.")
+
+
+# Create a persistent session with a realistic User-Agent for yfinance
+YF_SESSION = requests.Session()
+YF_SESSION.headers.update({
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0 Safari/537.36"
+    ),
+    "Accept": "*/*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Connection": "keep-alive",
+})
+
+
+def retry_with_backoff(operation, *, retries=3, base_delay_seconds=0.5, max_delay_seconds=4.0, exceptions=(Exception,), description="operation"):
+    """Retry helper with exponential backoff and jitter for network operations."""
+    attempt_index = 0
+    last_error = None
+    while attempt_index < retries:
+        try:
+            return operation()
+        except exceptions as err:
+            last_error = err
+            attempt_index += 1
+            if attempt_index >= retries:
+                break
+            # Exponential backoff with jitter
+            backoff = min(max_delay_seconds, base_delay_seconds * (2 ** (attempt_index - 1)))
+            jitter = random.uniform(0.0, 0.25 * backoff)
+            sleep_seconds = backoff + jitter
+            time.sleep(sleep_seconds)
+    raise last_error if last_error else RuntimeError(f"{description} failed with unknown error")
 
 
 def yang_zhang(price_data, window=30, trading_periods=252, return_last_only=True):
@@ -125,7 +160,15 @@ def build_term_structure(days, ivs):
     return term_spline
 
 def get_current_price(ticker):
-    todays_data = ticker.history(period='1d')
+    todays_data = retry_with_backoff(
+        lambda: ticker.history(period='1d'),
+        retries=3,
+        base_delay_seconds=0.75,
+        description="get_current_price: history(period='1d')",
+        exceptions=(Exception,)
+    )
+    if 'Close' not in todays_data or todays_data.empty:
+        raise ValueError("No Close data in today's history")
     return todays_data['Close'].iloc[0]
 
 def compute_recommendation(ticker):
@@ -133,76 +176,94 @@ def compute_recommendation(ticker):
         ticker = ticker.strip().upper()
         if not ticker:
             return "No stock symbol provided."
-        
+
+        # Use shared session and retries
+        stock = yf.Ticker(ticker, session=YF_SESSION)
+
         try:
-            stock = yf.Ticker(ticker)
-            if len(stock.options) == 0:
-                raise KeyError()
-        except KeyError:
-            return f"Error: No options found for stock symbol '{ticker}'."
-        
-        exp_dates = list(stock.options)
+            stock_options = retry_with_backoff(
+                lambda: list(stock.options),
+                retries=3,
+                base_delay_seconds=0.75,
+                description="fetch options list",
+                exceptions=(Exception,)
+            )
+            if len(stock_options) == 0:
+                return f"Error: No options found for stock symbol '{ticker}'."
+        except Exception as opt_err:
+            return f"Error: Failed to fetch options for '{ticker}': {opt_err}"
+
         try:
-            exp_dates = filter_dates(exp_dates)
-        except:
+            exp_dates = filter_dates(stock_options)
+        except Exception:
             return "Error: Not enough option data."
-        
+
         options_chains = {}
         for exp_date in exp_dates:
-            options_chains[exp_date] = stock.option_chain(exp_date)
-        
+            try:
+                chain = retry_with_backoff(
+                    lambda d=exp_date: stock.option_chain(d),
+                    retries=3,
+                    base_delay_seconds=0.75,
+                    description=f"fetch option_chain({exp_date})",
+                    exceptions=(Exception,)
+                )
+                options_chains[exp_date] = chain
+            except Exception:
+                # Skip this expiration if it fails after retries
+                continue
+
         try:
             underlying_price = get_current_price(stock)
             if underlying_price is None:
                 raise ValueError("No market price found.")
-        except Exception:
-            return "Error: Unable to retrieve underlying stock price."
-        
+        except Exception as price_err:
+            return f"Error: Unable to retrieve underlying stock price: {price_err}"
+
         atm_iv = {}
-        straddle = None 
+        straddle = None
         i = 0
         for exp_date, chain in options_chains.items():
-            calls = chain.calls
-            puts = chain.puts
+            calls = getattr(chain, 'calls', None)
+            puts = getattr(chain, 'puts', None)
 
-            if calls.empty or puts.empty:
+            if calls is None or puts is None or calls.empty or puts.empty:
+                continue
+
+            if 'strike' not in calls or 'strike' not in puts:
                 continue
 
             call_diffs = (calls['strike'] - underlying_price).abs()
             call_idx = call_diffs.idxmin()
-            call_iv = calls.loc[call_idx, 'impliedVolatility']
+            call_iv = calls.loc[call_idx].get('impliedVolatility', np.nan)
 
             put_diffs = (puts['strike'] - underlying_price).abs()
             put_idx = put_diffs.idxmin()
-            put_iv = puts.loc[put_idx, 'impliedVolatility']
+            put_iv = puts.loc[put_idx].get('impliedVolatility', np.nan)
+
+            if np.isnan(call_iv) or np.isnan(put_iv):
+                continue
 
             atm_iv_value = (call_iv + put_iv) / 2.0
             atm_iv[exp_date] = atm_iv_value
 
             if i == 0:
-                call_bid = calls.loc[call_idx, 'bid']
-                call_ask = calls.loc[call_idx, 'ask']
-                put_bid = puts.loc[put_idx, 'bid']
-                put_ask = puts.loc[put_idx, 'ask']
-                
-                if call_bid is not None and call_ask is not None:
-                    call_mid = (call_bid + call_ask) / 2.0
-                else:
-                    call_mid = None
+                call_bid = calls.loc[call_idx].get('bid')
+                call_ask = calls.loc[call_idx].get('ask')
+                put_bid = puts.loc[put_idx].get('bid')
+                put_ask = puts.loc[put_idx].get('ask')
 
-                if put_bid is not None and put_ask is not None:
-                    put_mid = (put_bid + put_ask) / 2.0
-                else:
-                    put_mid = None
+                call_mid = ((call_bid + call_ask) / 2.0) if call_bid is not None and call_ask is not None else None
+                put_mid = ((put_bid + put_ask) / 2.0) if put_bid is not None and put_ask is not None else None
 
                 if call_mid is not None and put_mid is not None:
                     straddle = (call_mid + put_mid)
 
             i += 1
-        
+
         if not atm_iv:
             return "Error: Could not determine ATM IV for any expiration dates."
-        
+
         today = datetime.today().date()
         dtes = []
         ivs = []
@@ -211,21 +272,33 @@ def compute_recommendation(ticker):
             days_to_expiry = (exp_date_obj - today).days
             dtes.append(days_to_expiry)
             ivs.append(iv)
-        
+
         term_spline = build_term_structure(dtes, ivs)
-        
-        ts_slope_0_45 = (term_spline(45) - term_spline(dtes[0])) / (45-dtes[0])
-        
-        price_history = stock.history(period='3mo')
+
+        ts_slope_0_45 = (term_spline(45) - term_spline(dtes[0])) / (45 - dtes[0])
+
+        price_history = retry_with_backoff(
+            lambda: stock.history(period='3mo'),
+            retries=3,
+            base_delay_seconds=0.75,
+            description="history(period='3mo')",
+            exceptions=(Exception,)
+        )
+
         iv30_rv30 = term_spline(30) / yang_zhang(price_history)
 
         avg_volume = price_history['Volume'].rolling(30).mean().dropna().iloc[-1]
 
-        expected_move = str(round(straddle / underlying_price * 100,2)) + "%" if straddle else None
+        expected_move = str(round(straddle / underlying_price * 100, 2)) + "%" if straddle else None
 
-        return {'avg_volume': avg_volume >= 1500000, 'iv30_rv30': iv30_rv30 >= 1.25, 'ts_slope_0_45': ts_slope_0_45 <= -0.00406, 'expected_move': expected_move} #Check that they are in our desired range (see video)
+        return {
+            'avg_volume': avg_volume >= 1500000,
+            'iv30_rv30': iv30_rv30 >= 1.25,
+            'ts_slope_0_45': ts_slope_0_45 <= -0.00406,
+            'expected_move': expected_move
+        }
     except Exception as e:
-        raise Exception(f'Error occured processing')
+        return f"Error: {e}"
         
 def analyze_stock_auto(ticker):
     """Analyze a single stock and return results with ticker info"""
@@ -276,9 +349,10 @@ def auto_analyze_stocks(progress_callback=None):
                 progress = int((i / total_stocks) * 100)
                 progress_callback(progress, f"Analyzing {ticker}... ({i+1}/{total_stocks})")
             
-            # Add delay to avoid rate limiting
+            # Add delay with small jitter to avoid rate limiting
             if i > 0:
-                time.sleep(0.1)
+                sleep_base = 0.35
+                time.sleep(sleep_base + random.uniform(0.0, 0.2))
             
             result = analyze_stock_auto(ticker)
             results.append(result)
