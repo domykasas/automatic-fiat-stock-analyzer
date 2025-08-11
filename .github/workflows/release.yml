@@ -48,13 +48,21 @@ jobs:
         run: |
           powershell -Command "Compress-Archive -Path dist/FiatTradeCalculator.exe -DestinationPath FiatTradeCalculator-Windows-x64.zip"
 
-      - name: Upload artifact
+      - name: Upload artifact (non-Windows)
+        if: ${{ runner.os != 'Windows' }}
         uses: actions/upload-artifact@v4
         with:
           name: FiatTradeCalculator-${{ runner.os }}-x64
-          path: |
-            FiatTradeCalculator-${{ runner.os }}-x64.tar.gz
-            FiatTradeCalculator-Windows-x64.zip
+          path: FiatTradeCalculator-${{ runner.os }}-x64.tar.gz
+          if-no-files-found: error
+
+      - name: Upload artifact (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: FiatTradeCalculator-${{ runner.os }}-x64
+          path: FiatTradeCalculator-Windows-x64.zip
+          if-no-files-found: error
 
   release:
     name: Create GitHub Release
