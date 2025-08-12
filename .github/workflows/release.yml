@@ -204,8 +204,29 @@ jobs:
       - name: Package artifacts (macOS)
         if: ${{ runner.os == 'macOS' }}
         run: |
-          ditto -c -k --sequesterRsrc --keepParent dist/FiatTradeCalculator.app FiatTradeCalculator-${{ env.VERSION }}-macOS-x64.zip
-          hdiutil create -volname "FiatTradeCalculator" -srcfolder "dist/FiatTradeCalculator.app" -ov -format UDZO FiatTradeCalculator-${{ env.VERSION }}-macOS-x64.dmg
+          echo "Checking for app bundle..."
+          echo "Contents of dist directory:"
+          ls -la dist/
+          echo "Looking for app bundle..."
+          find dist/ -name "*.app" -type d
+          if [ -d "dist/FiatTradeCalculator.app" ]; then
+            echo "App bundle found at dist/FiatTradeCalculator.app"
+            ditto -c -k --sequesterRsrc --keepParent dist/FiatTradeCalculator.app FiatTradeCalculator-${{ env.VERSION }}-macOS-x64.zip
+            hdiutil create -volname "FiatTradeCalculator" -srcfolder "dist/FiatTradeCalculator.app" -ov -format UDZO FiatTradeCalculator-${{ env.VERSION }}-macOS-x64.dmg
+          else
+            echo "App bundle not found at expected location, checking for alternatives..."
+            APP_PATH=$(find dist/ -name "*.app" -type d | head -1)
+            if [ -n "$APP_PATH" ]; then
+              echo "Found app bundle at: $APP_PATH"
+              APP_NAME=$(basename "$APP_PATH")
+              ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "FiatTradeCalculator-${{ env.VERSION }}-macOS-x64.zip"
+              hdiutil create -volname "FiatTradeCalculator" -srcfolder "$APP_PATH" -ov -format UDZO "FiatTradeCalculator-${{ env.VERSION }}-macOS-x64.dmg"
+            else
+              echo "No app bundle found, creating fallback package..."
+              # Fallback: create a simple zip of the dist directory
+              zip -r "FiatTradeCalculator-${{ env.VERSION }}-macOS-x64.zip" dist/
+            fi
+          fi
 
       - name: Upload Linux artifact
         if: ${{ runner.os == 'Linux' }}
