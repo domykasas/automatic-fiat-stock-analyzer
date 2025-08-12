@@ -110,8 +110,8 @@ If you encounter any issues:
 
 ## Current Version
 
-**Version**: 1.0.6
+**Version**: 1.0.8
 
-**Latest Improvements**: Enhanced rate limiting and session management to prevent Yahoo Finance API throttling issues.
+**Latest Improvements**: Further optimized rate limiting system for maximum performance without delays.
 
 For the latest updates and release notes, see the [Releases page](https://github.com/domykasas/automatic-fiat-stock-analyzer/releases).

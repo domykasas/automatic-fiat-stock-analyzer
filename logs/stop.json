@@ -1,0 +1,9 @@
+[
+  {
+    "session_id": "ea4bc0a5-94c9-4265-8499-d77827404b76",
+    "transcript_path": "/home/d/.claude/projects/-mnt-c-Users-D-Desktop-trade-calculator/ea4bc0a5-94c9-4265-8499-d77827404b76.jsonl",
+    "cwd": "/mnt/c/Users/D/Desktop/trade calculator",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
+  }
+]

@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.8] - 2024-12-19
+
+### Added
+- Further optimized rate limiting system for maximum performance
+- Enhanced session management without artificial delays
+- Improved error handling for compiled binaries
+
+### Fixed
+- Removed remaining unnecessary delays for faster execution
+- Optimized session rotation for better performance
+- Enhanced rate limit detection and handling
+
+### Changed
+- Bumped version to 1.0.8 for continued improvements
+- Streamlined session management for optimal speed
+- Improved overall application performance
+
 ## [Unreleased]
 
 ### Added
@@ -15,6 +32,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Improved project structure and documentation
 - Better version control and release management
+
+## [1.0.7] - 2024-12-19
+
+### Added
+- Optimized rate limiting system for maximum speed
+- Smart session rotation without artificial delays
+- Enhanced error detection for compiled binaries
+
+### Fixed
+- Removed unnecessary delays that were slowing down the program
+- Optimized session management for faster performance
+- Improved rate limit handling without performance penalties
+
+### Changed
+- Reduced retry delays from 1.5s to 0.5s base
+- Simplified session rotation logic
+- Optimized backoff strategy for minimal impact on speed
+- Increased session pool size to 5 for better distribution
 
 ## [1.0.6] - 2024-12-19
 
