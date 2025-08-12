@@ -251,16 +251,56 @@ jobs:
       - name: Package artifact (Linux)
         if: ${{ runner.os == 'Linux' }}
         run: |
-          mkdir -p dist_pkg
-          cp "dist/FiatTradeCalculator-1.0.1" dist_pkg/
-          tar -C dist_pkg -czf "FiatTradeCalculator-1.0.1-Linux-x64.tar.gz" .
+          echo "Checking for Linux executable..."
+          echo "Contents of dist directory:"
+          ls -la dist/
+          echo "Looking for executable files..."
+          find dist/ -type f -executable
+          
+          # Try to find the executable with versioned name first
+          if [ -f "dist/FiatTradeCalculator-1.0.1" ]; then
+            echo "Found versioned executable: dist/FiatTradeCalculator-1.0.1"
+            mkdir -p dist_pkg
+            cp "dist/FiatTradeCalculator-1.0.1" dist_pkg/
+            tar -C dist_pkg -czf "FiatTradeCalculator-1.0.1-Linux-x64.tar.gz" .
+          elif [ -f "dist/FiatTradeCalculator" ]; then
+            echo "Found unversioned executable: dist/FiatTradeCalculator"
+            mkdir -p dist_pkg
+            cp "dist/FiatTradeCalculator" dist_pkg/
+            tar -C dist_pkg -czf "FiatTradeCalculator-1.0.1-Linux-x64.tar.gz" .
+          else
+            echo "No executable found in dist directory!"
+            echo "Available files:"
+            ls -la dist/
+            exit 1
+          fi
 
       - name: Package artifacts (Windows)
         if: ${{ runner.os == 'Windows' }}
         run: |
-          $exe = "FiatTradeCalculator-1.0.1-Windows-x64.exe"
-          Copy-Item "dist/FiatTradeCalculator-1.0.1.exe" $exe
-          Compress-Archive -Path "dist/FiatTradeCalculator-1.0.1.exe" -DestinationPath "FiatTradeCalculator-1.0.1-Windows-x64.zip"
+          echo "Checking for Windows executable..."
+          echo "Contents of dist directory:"
+          Get-ChildItem dist/
+          echo "Looking for executable files..."
+          Get-ChildItem dist/ -Filter "*.exe"
+          
+          # Try to find the executable with versioned name first
+          if (Test-Path "dist/FiatTradeCalculator-1.0.1.exe") {
+            echo "Found versioned executable: dist/FiatTradeCalculator-1.0.1.exe"
+            $exe = "FiatTradeCalculator-1.0.1-Windows-x64.exe"
+            Copy-Item "dist/FiatTradeCalculator-1.0.1.exe" $exe
+            Compress-Archive -Path "dist/FiatTradeCalculator-1.0.1.exe" -DestinationPath "FiatTradeCalculator-1.0.1-Windows-x64.zip"
+          } elseif (Test-Path "dist/FiatTradeCalculator.exe") {
+            echo "Found unversioned executable: dist/FiatTradeCalculator.exe"
+            $exe = "FiatTradeCalculator-1.0.1-Windows-x64.exe"
+            Copy-Item "dist/FiatTradeCalculator.exe" $exe
+            Compress-Archive -Path "dist/FiatTradeCalculator.exe" -DestinationPath "FiatTradeCalculator-1.0.1-Windows-x64.zip"
+          } else {
+            echo "No executable found in dist directory!"
+            echo "Available files:"
+            Get-ChildItem dist/
+            exit 1
+          }
 
       - name: Package artifacts (macOS)
         if: ${{ runner.os == 'macOS' }}
@@ -270,10 +310,16 @@ jobs:
           ls -la dist/
           echo "Looking for app bundle..."
           find dist/ -name "*.app" -type d
+          
+          # Try to find the app bundle with versioned name first
           if [ -d "dist/FiatTradeCalculator-1.0.1.app" ]; then
-            echo "App bundle found at dist/FiatTradeCalculator-1.0.1.app"
+            echo "Found versioned app bundle: dist/FiatTradeCalculator-1.0.1.app"
             ditto -c -k --sequesterRsrc --keepParent "dist/FiatTradeCalculator-1.0.1.app" "FiatTradeCalculator-1.0.1-macOS-x64.zip"
             hdiutil create -volname "FiatTradeCalculator" -srcfolder "dist/FiatTradeCalculator-1.0.1.app" -ov -format UDZO "FiatTradeCalculator-1.0.1-macOS-x64.dmg"
+          elif [ -d "dist/FiatTradeCalculator.app" ]; then
+            echo "Found unversioned app bundle: dist/FiatTradeCalculator.app"
+            ditto -c -k --sequesterRsrc --keepParent "dist/FiatTradeCalculator.app" "FiatTradeCalculator-1.0.1-macOS-x64.zip"
+            hdiutil create -volname "FiatTradeCalculator" -srcfolder "dist/FiatTradeCalculator.app" -ov -format UDZO "FiatTradeCalculator-1.0.1-macOS-x64.dmg"
           else
             echo "App bundle not found at expected location, checking for alternatives..."
             APP_PATH=$(find dist/ -name "*.app" -type d | head -1)
