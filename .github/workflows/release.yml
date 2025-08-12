@@ -40,18 +40,18 @@ jobs:
             const ref = process.env.GITHUB_REF || '';
             const refName = process.env.GITHUB_REF_NAME || '';
             
-            // Read version from version.py file
+            // Read version from calculator.py file
             const fs = require('fs');
-            let version = '1.0.5'; // Default fallback
+            let version = '1.0.6'; // Default fallback
             
             try {
-              const versionContent = fs.readFileSync('version.py', 'utf8');
-              const versionMatch = versionContent.match(/__version__\s*=\s*["']([^"']+)["']/);
+              const calculatorContent = fs.readFileSync('calculator.py', 'utf8');
+              const versionMatch = calculatorContent.match(/__version__\s*=\s*["']([^"']+)["']/);
               if (versionMatch) {
                 version = versionMatch[1];
               }
             } catch (error) {
-              console.log('Could not read version.py, using default version');
+              console.log('Could not read calculator.py, using default version');
             }
             
             // Override with tag version if this is a tagged release

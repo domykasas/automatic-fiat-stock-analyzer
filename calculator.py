@@ -7,6 +7,10 @@ The developers are not financial advisors and accept no responsibility for any f
 Always consult a professional financial advisor before making any investment decisions.
 """
 
+# Version information - single source of truth
+__version__ = "1.0.6"
+__version_info__ = (1, 0, 6)
+VERSION = __version__
 
 import FreeSimpleGUI as sg
 import yfinance as yf
@@ -111,37 +115,73 @@ def filter_dates(dates):
     raise ValueError("No date 45 days or more in the future found.")
 
 
-# Create a persistent curl_cffi session (required by newer Yahoo stack)
-YF_SESSION = cfr.Session(impersonate="chrome124")
-YF_SESSION.headers.update({
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0 Safari/537.36"
-    ),
-    "Accept": "*/*",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Connection": "keep-alive",
-})
+# Create multiple persistent curl_cffi sessions for rotation (required by newer Yahoo stack)
+def create_yf_session():
+    """Create a new Yahoo Finance session with proper headers"""
+    session = cfr.Session(impersonate="chrome124")
+    session.headers.update({
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0 Safari/537.36"
+        ),
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Connection": "keep-alive",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+    })
+    return session
+
+# Session pool for rotation
+YF_SESSIONS = [create_yf_session() for _ in range(3)]
+YF_SESSION_INDEX = 0
+
+def get_yf_session():
+    """Get next session from the pool for rotation"""
+    global YF_SESSION_INDEX
+    session = YF_SESSIONS[YF_SESSION_INDEX]
+    YF_SESSION_INDEX = (YF_SESSION_INDEX + 1) % len(YF_SESSIONS)
+    return session
+
+def reset_yf_sessions():
+    """Reset all sessions to handle rate limiting"""
+    global YF_SESSIONS
+    YF_SESSIONS = [create_yf_session() for _ in range(3)]
+    print("CLI: Reset Yahoo Finance sessions due to rate limiting")
 
 
-def retry_with_backoff(operation, *, retries=3, base_delay_seconds=0.5, max_delay_seconds=4.0, exceptions=(Exception,), description="operation"):
+def retry_with_backoff(operation, *, retries=3, base_delay_seconds=1.0, max_delay_seconds=8.0, exceptions=(Exception,), description="operation"):
     """Retry helper with exponential backoff and jitter for network operations."""
     attempt_index = 0
     last_error = None
+    
     while attempt_index < retries:
         try:
             return operation()
-        except exceptions as err:
+        except Exception as err:
             last_error = err
             attempt_index += 1
+            
+            # Check if this is a rate limit error
+            error_str = str(err).lower()
+            if any(phrase in error_str for phrase in ['rate limit', 'too many requests', '429', 'quota exceeded']):
+                print(f"CLI: Rate limit detected for {description}, rotating sessions...")
+                reset_yf_sessions()
+                # Longer delay for rate limits
+                time.sleep(random.uniform(2.0, 5.0))
+            
             if attempt_index >= retries:
                 break
+                
             # Exponential backoff with jitter
             backoff = min(max_delay_seconds, base_delay_seconds * (2 ** (attempt_index - 1)))
             jitter = random.uniform(0.0, 0.25 * backoff)
             sleep_seconds = backoff + jitter
+            
+            print(f"CLI: Retry {attempt_index}/{retries} for {description} in {sleep_seconds:.1f}s...")
             time.sleep(sleep_seconds)
+    
     raise last_error if last_error else RuntimeError(f"{description} failed with unknown error")
 
 
@@ -222,7 +262,7 @@ def compute_recommendation(ticker):
             return "No stock symbol provided."
 
         # Use shared session and retries
-        stock = yf.Ticker(ticker, session=YF_SESSION)
+        stock = yf.Ticker(ticker, session=get_yf_session())
 
         try:
             stock_options = retry_with_backoff(
@@ -380,6 +420,10 @@ def auto_analyze_stocks(progress_callback=None, list_limit: int | None = None):
     total_stocks = len(stocks_to_analyze)
     analysis_start_ts = time.perf_counter()
     
+    # Track consecutive failures for adaptive rate limiting
+    consecutive_failures = 0
+    base_delay = 1.0
+    
     for i, ticker in enumerate(stocks_to_analyze):
         try:
             # Update progress
@@ -388,14 +432,22 @@ def auto_analyze_stocks(progress_callback=None, list_limit: int | None = None):
                 progress_callback(progress, f"Analyzing {ticker}... ({i+1}/{total_stocks})")
             print(f"CLI: Analyzing {ticker} ({i+1}/{total_stocks})")
             
-            # Add delay with small jitter to avoid rate limiting
+            # Adaptive delay based on consecutive failures
             if i > 0:
-                sleep_base = 0.35
-                time.sleep(sleep_base + random.uniform(0.0, 0.2))
+                if consecutive_failures > 2:
+                    # Increase delay if we're hitting rate limits
+                    base_delay = min(5.0, base_delay * 1.5)
+                    delay = base_delay + random.uniform(0.5, 2.0)
+                    print(f"CLI: Increased delay to {delay:.1f}s due to consecutive failures")
+                else:
+                    delay = base_delay + random.uniform(0.2, 0.8)
+                
+                time.sleep(delay)
             
             result = analyze_stock_auto(ticker)
             if result is not None:
                 results.append(result)
+                consecutive_failures = 0  # Reset on success
                 if result.get('status') == 'success':
                     data = result.get('result', {})
                     print(
@@ -406,10 +458,36 @@ def auto_analyze_stocks(progress_callback=None, list_limit: int | None = None):
                 else:
                     print(f"CLI: ❌ {ticker} error={result.get('result')}")
             else:
+                consecutive_failures += 1
                 print(f"CLI: ⏭️ Skipping {ticker}: No listed options on Yahoo Finance or data fetch failed (rate limit)")
+                
+                # If we're hitting rate limits, add extra delay
+                if consecutive_failures > 1:
+                    extra_delay = handle_rate_limit_delay(consecutive_failures)
+                    print(f"CLI: Adding extra delay of {extra_delay:.1f}s due to rate limiting...")
+                    time.sleep(extra_delay)
+                    
+                    # Reset sessions if we're getting too many failures
+                    if consecutive_failures >= 5:
+                        print("CLI: Too many consecutive failures, resetting sessions...")
+                        reset_yf_sessions()
+                        consecutive_failures = 0  # Reset counter after session reset
             
         except Exception as e:
+            consecutive_failures += 1
             print(f"CLI: ❌ {ticker} exception={e}")
+            
+            # Check if this is a rate limit error
+            if is_rate_limited_error(str(e)):
+                extra_delay = handle_rate_limit_delay(consecutive_failures)
+                print(f"CLI: Rate limit detected, adding delay of {extra_delay:.1f}s...")
+                time.sleep(extra_delay)
+                
+                # Reset sessions if we're getting too many failures
+                if consecutive_failures >= 5:
+                    print("CLI: Too many consecutive failures, resetting sessions...")
+                    reset_yf_sessions()
+                    consecutive_failures = 0  # Reset counter after session reset
     
     # Sort results: successes first by score desc, then errors
     def sort_key(item):
@@ -421,6 +499,27 @@ def auto_analyze_stocks(progress_callback=None, list_limit: int | None = None):
     elapsed_s = time.perf_counter() - analysis_start_ts
     print(f"CLI: Analysis finished in {elapsed_s:.1f}s. {len(results)} results.")
     return results
+
+def is_rate_limited_error(error_msg):
+    """Check if an error message indicates rate limiting"""
+    error_lower = error_msg.lower()
+    rate_limit_indicators = [
+        'rate limit', 'too many requests', '429', 'quota exceeded',
+        'throttled', 'temporary block', 'access denied', 'forbidden',
+        'no listed options', 'data fetch failed'
+    ]
+    return any(indicator in error_lower for indicator in rate_limit_indicators)
+
+def handle_rate_limit_delay(consecutive_failures):
+    """Handle rate limiting with adaptive delays"""
+    if consecutive_failures <= 1:
+        return random.uniform(1.0, 2.0)
+    elif consecutive_failures <= 3:
+        return random.uniform(2.0, 4.0)
+    elif consecutive_failures <= 5:
+        return random.uniform(4.0, 8.0)
+    else:
+        return random.uniform(8.0, 15.0)
 
 def _format_eta_text(num_tickers: int) -> str:
     num = max(1, min(500, int(num_tickers)))

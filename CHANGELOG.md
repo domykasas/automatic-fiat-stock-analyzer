@@ -8,13 +8,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Centralized version management system
-- Comprehensive CHANGELOG.md following Keep a Changelog guidelines
-- Enhanced project documentation and README.md
+- Enhanced rate limiting and session management for Yahoo Finance
+- Better error handling and retry logic for network requests
+- Session rotation to prevent rate limiting
 
 ### Changed
 - Improved project structure and documentation
 - Better version control and release management
+
+## [1.0.6] - 2024-12-19
+
+### Added
+- Integrated version.py into calculator.py for centralized version management
+- Enhanced rate limiting system with adaptive delays
+- Session rotation mechanism to prevent Yahoo Finance rate limiting
+- Better error detection and handling for rate limit scenarios
+- Adaptive delay system based on consecutive failures
+
+### Fixed
+- Yahoo Finance rate limit issues causing all stocks to be skipped
+- "No listed options on Yahoo Finance or data fetch failed (rate limit)" errors
+- Inefficient request timing leading to API throttling
+- Session exhaustion from repeated requests
+
+### Changed
+- Increased base delays between requests (1.0s instead of 0.35s)
+- Implemented exponential backoff with jitter for retries
+- Added session pool rotation to distribute load
+- Enhanced retry logic with rate limit detection
+- Improved error handling and user feedback
 
 ## [1.0.5] - 2024-12-19
 
