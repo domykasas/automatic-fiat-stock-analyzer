@@ -74,15 +74,49 @@ jobs:
           echo "Installed packages:"
           pip list
 
+      - name: Verify spec file
+        run: |
+          echo "Checking spec file..."
+          if [ -f "FiatTradeCalculator.spec" ]; then
+            echo "Spec file exists. Contents:"
+            cat FiatTradeCalculator.spec
+          else
+            echo "Spec file not found!"
+            echo "Creating a basic spec file..."
+            pyi-makespec --name FiatTradeCalculator --onefile calculator.py
+            echo "Generated spec file contents:"
+            cat FiatTradeCalculator.spec
+          fi
+
       - name: Build executable (Windows/Linux)
         if: ${{ runner.os != 'macOS' }}
         run: |
-          pyinstaller FiatTradeCalculator.spec
+          echo "Current directory: $(pwd)"
+          echo "Files in current directory:"
+          ls -la
+          echo "Checking if spec file exists:"
+          if [ -f "FiatTradeCalculator.spec" ]; then
+            echo "Spec file found, using it..."
+            pyinstaller FiatTradeCalculator.spec
+          else
+            echo "Spec file not found, using command-line approach..."
+            pyinstaller --name FiatTradeCalculator --onefile --hidden-import yfinance --hidden-import curl_cffi --hidden-import requests --hidden-import pandas --hidden-import numpy --hidden-import scipy --hidden-import lxml --hidden-import bs4 --hidden-import html5lib --collect-all yfinance --collect-all curl_cffi calculator.py
+          fi
 
       - name: Build app bundle (macOS)
         if: ${{ runner.os == 'macOS' }}
         run: |
-          pyinstaller FiatTradeCalculator.spec
+          echo "Current directory: $(pwd)"
+          echo "Files in current directory:"
+          ls -la
+          echo "Checking if spec file exists:"
+          if [ -f "FiatTradeCalculator.spec" ]; then
+            echo "Spec file found, using it..."
+            pyinstaller FiatTradeCalculator.spec
+          else
+            echo "Spec file not found, using command-line approach..."
+            pyinstaller --name FiatTradeCalculator --windowed --hidden-import yfinance --hidden-import curl_cffi --hidden-import requests --hidden-import pandas --hidden-import numpy --hidden-import scipy --hidden-import lxml --hidden-import bs4 --hidden-import html5lib --collect-all yfinance --collect-all curl_cffi calculator.py
+          fi
 
       - name: Test executable (Windows/Linux)
         if: ${{ runner.os != 'macOS' }}
