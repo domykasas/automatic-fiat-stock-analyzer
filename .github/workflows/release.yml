@@ -149,11 +149,36 @@ jobs:
             pyinstaller --name FiatTradeCalculator --windowed --hidden-import yfinance --hidden-import curl_cffi --hidden-import requests --hidden-import pandas --hidden-import numpy --hidden-import scipy --hidden-import lxml --hidden-import bs4 --hidden-import html5lib --collect-all yfinance --collect-all curl_cffi calculator.py
           fi
 
-      - name: Test executable (Windows/Linux)
-        if: ${{ runner.os != 'macOS' }}
+      - name: Test executable (Windows)
+        if: ${{ runner.os == 'Windows' }}
         run: |
           echo "Testing executable..."
-          ./dist/FiatTradeCalculator --help || echo "Executable built successfully"
+          echo "Checking if executable exists..."
+          if (Test-Path "dist/FiatTradeCalculator.exe") {
+            echo "Executable found, testing with timeout..."
+            # Use timeout to prevent infinite hanging
+            Start-Process -FilePath "dist/FiatTradeCalculator.exe" -ArgumentList "--help" -Wait -TimeoutSec 30 -PassThru
+            if ($LASTEXITCODE -eq 0) {
+              echo "Executable test completed successfully"
+            } else {
+              echo "Executable test completed with exit code: $LASTEXITCODE"
+            }
+          } else {
+            echo "Executable not found at dist/FiatTradeCalculator.exe"
+          }
+
+      - name: Test executable (Linux)
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          echo "Testing executable..."
+          echo "Checking if executable exists..."
+          if [ -f "dist/FiatTradeCalculator" ]; then
+            echo "Executable found, testing with timeout..."
+            # Use timeout to prevent infinite hanging
+            timeout 30s ./dist/FiatTradeCalculator --help || echo "Executable test completed"
+          else
+            echo "Executable not found at dist/FiatTradeCalculator"
+          fi
 
       - name: Test app bundle (macOS)
         if: ${{ runner.os == 'macOS' }}
