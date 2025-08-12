@@ -156,13 +156,38 @@ jobs:
           echo "Checking if executable exists..."
           if (Test-Path "dist/FiatTradeCalculator.exe") {
             echo "Executable found, testing with timeout..."
-            # Use timeout to prevent infinite hanging
-            Start-Process -FilePath "dist/FiatTradeCalculator.exe" -ArgumentList "--help" -Wait -TimeoutSec 30 -PassThru
-            if ($LASTEXITCODE -eq 0) {
-              echo "Executable test completed successfully"
-            } else {
-              echo "Executable test completed with exit code: $LASTEXITCODE"
+            # Use Job with timeout to prevent infinite hanging
+            $job = Start-Job -ScriptBlock { 
+              param($exePath)
+              & $exePath --help
+            } -ArgumentList "dist/FiatTradeCalculator.exe"
+            
+            # Wait for job with timeout
+            $timeout = 30
+            $startTime = Get-Date
+            do {
+              if ($job.State -eq "Completed") {
+                $result = Receive-Job -Job $job
+                echo "Executable test completed successfully"
+                echo "Output: $result"
+                break
+              }
+              if ($job.State -eq "Failed") {
+                echo "Executable test failed"
+                $error = Receive-Job -Job $job -ErrorAction SilentlyContinue
+                echo "Error: $error"
+                break
+              }
+              Start-Sleep -Seconds 1
+              $elapsed = (Get-Date) - $startTime
+            } while ($elapsed.TotalSeconds -lt $timeout)
+            
+            if ($job.State -ne "Completed" -and $job.State -ne "Failed") {
+              echo "Executable test timed out after $timeout seconds"
+              Stop-Job -Job $job -ErrorAction SilentlyContinue
             }
+            
+            Remove-Job -Job $job -ErrorAction SilentlyContinue
           } else {
             echo "Executable not found at dist/FiatTradeCalculator.exe"
           }
