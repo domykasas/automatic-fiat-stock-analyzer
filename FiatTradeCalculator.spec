@@ -1,7 +1,22 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-# Import version from version.py
-import version
+# Read version from calculator.py
+import re
+import os
+
+def get_version_from_calculator():
+    """Extract version from calculator.py"""
+    try:
+        with open('calculator.py', 'r', encoding='utf-8') as f:
+            content = f.read()
+            match = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', content)
+            if match:
+                return match.group(1)
+    except Exception:
+        pass
+    return '1.0.6'  # Fallback version
+
+VERSION = get_version_from_calculator()
 
 block_cipher = None
 
@@ -122,7 +137,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name=f'FiatTradeCalculator-{version.__version__}',
+    name=f'FiatTradeCalculator-{VERSION}',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -140,14 +155,14 @@ exe = EXE(
 # macOS app bundle
 app = BUNDLE(
     exe,
-    name=f'FiatTradeCalculator-{version.__version__}.app',
+    name=f'FiatTradeCalculator-{VERSION}.app',
     icon=None,
     bundle_identifier=None,
     info_plist={
         'NSHighResolutionCapable': 'True',
         'CFBundleDisplayName': 'Fiat Trade Calculator',
         'CFBundleName': 'Fiat Trade Calculator',
-        'CFBundleVersion': version.__version__,
-        'CFBundleShortVersionString': version.__version__,
+        'CFBundleVersion': VERSION,
+        'CFBundleShortVersionString': VERSION,
     },
 )

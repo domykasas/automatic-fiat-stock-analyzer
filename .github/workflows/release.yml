@@ -45,20 +45,32 @@ jobs:
             let version = '1.0.6'; // Default fallback
             
             try {
+              console.log('Reading calculator.py file...');
               const calculatorContent = fs.readFileSync('calculator.py', 'utf8');
+              console.log('File content length:', calculatorContent.length);
+              console.log('First 200 characters:', calculatorContent.substring(0, 200));
+              
               const versionMatch = calculatorContent.match(/__version__\s*=\s*["']([^"']+)["']/);
+              console.log('Version regex match:', versionMatch);
+              
               if (versionMatch) {
                 version = versionMatch[1];
+                console.log('Extracted version:', version);
+              } else {
+                console.log('No version match found, using default:', version);
               }
             } catch (error) {
-              console.log('Could not read calculator.py, using default version');
+              console.log('Error reading calculator.py:', error.message);
+              console.log('Using default version:', version);
             }
             
             // Override with tag version if this is a tagged release
             if (ref.startsWith('refs/tags/v')) {
               version = refName.replace(/^v/, '');
+              console.log('Overriding with tag version:', version);
             }
             
+            console.log('Final VERSION:', version);
             core.exportVariable('VERSION', version);
             core.info(`VERSION=${version}`);
 
