@@ -60,7 +60,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='FiatTradeCalculator',
+    name='FiatTradeCalculator-1.0.1',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -78,14 +78,14 @@ exe = EXE(
 # macOS app bundle
 app = BUNDLE(
     exe,
-    name='FiatTradeCalculator.app',
+    name='FiatTradeCalculator-1.0.1.app',
     icon=None,
     bundle_identifier=None,
     info_plist={
         'NSHighResolutionCapable': 'True',
         'CFBundleDisplayName': 'Fiat Trade Calculator',
         'CFBundleName': 'Fiat Trade Calculator',
-        'CFBundleVersion': '1.0.0',
-        'CFBundleShortVersionString': '1.0.0',
+        'CFBundleVersion': '1.0.1',
+        'CFBundleShortVersionString': '1.0.1',
     },
 )
