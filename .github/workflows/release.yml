@@ -21,7 +21,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Clean previous builds
+      - name: Clean previous builds (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        run: |
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue dist, build, __pycache__, *.spec
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue .pytest_cache, .coverage, htmlcov
+
+      - name: Clean previous builds (Linux/macOS)
+        if: ${{ runner.os != 'Windows' }}
         run: |
           rm -rf dist build __pycache__ *.spec
           rm -rf .pytest_cache .coverage htmlcov
@@ -89,7 +96,18 @@ jobs:
           echo "Testing app bundle..."
           ./dist/FiatTradeCalculator.app/Contents/MacOS/FiatTradeCalculator --help || echo "App bundle built successfully"
 
-      - name: Verify build artifacts
+      - name: Verify build artifacts (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        run: |
+          echo "Build artifacts:"
+          Get-ChildItem dist/
+          if (Test-Path "dist/FiatTradeCalculator.exe") {
+            $size = (Get-Item "dist/FiatTradeCalculator.exe").Length
+            echo "Windows executable size: $([math]::Round($size/1MB, 2)) MB"
+          }
+
+      - name: Verify build artifacts (Linux/macOS)
+        if: ${{ runner.os != 'Windows' }}
         run: |
           echo "Build artifacts:"
           ls -la dist/
