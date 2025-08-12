@@ -1,0 +1,91 @@
+# -*- mode: python ; coding: utf-8 -*-
+
+block_cipher = None
+
+a = Analysis(
+    ['calculator.py'],
+    pathex=[],
+    binaries=[],
+    datas=[],
+    hiddenimports=[
+        'yfinance',
+        'curl_cffi',
+        'requests',
+        'pandas',
+        'numpy',
+        'scipy',
+        'lxml',
+        'bs4',
+        'html5lib',
+        'yfinance.core',
+        'yfinance.data',
+        'yfinance.utils',
+        'curl_cffi.requests',
+        'curl_cffi.impersonate',
+        'FreeSimpleGUI',
+        'threading',
+        'datetime',
+        'time',
+        'random',
+        're',
+        'scipy.interpolate',
+        'scipy.interpolate.interp1d',
+        'pandas.io.html',
+        'pandas.io.html.read_html',
+        'requests.adapters',
+        'requests.packages.urllib3',
+        'urllib3',
+        'certifi',
+        'charset_normalizer',
+        'idna',
+    ],
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[],
+    win_no_prefer_redirects=False,
+    win_private_assemblies=False,
+    cipher=block_cipher,
+    noarchive=False,
+    collect_all_data=True,
+    collect_submodules=['yfinance', 'curl_cffi', 'pandas', 'numpy', 'scipy'],
+)
+
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    [],
+    name='FiatTradeCalculator',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=True,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+)
+
+# macOS app bundle
+app = BUNDLE(
+    exe,
+    name='FiatTradeCalculator.app',
+    icon=None,
+    bundle_identifier=None,
+    info_plist={
+        'NSHighResolutionCapable': 'True',
+        'CFBundleDisplayName': 'Fiat Trade Calculator',
+        'CFBundleName': 'Fiat Trade Calculator',
+        'CFBundleVersion': '0.1.7',
+        'CFBundleShortVersionString': '0.1.7',
+    },
+)
