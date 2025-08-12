@@ -74,7 +74,23 @@ jobs:
           echo "Installed packages:"
           pip list
 
-      - name: Verify spec file
+      - name: Verify spec file (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        run: |
+          echo "Checking spec file..."
+          if (Test-Path "FiatTradeCalculator.spec") {
+            echo "Spec file exists. Contents:"
+            Get-Content FiatTradeCalculator.spec
+          } else {
+            echo "Spec file not found!"
+            echo "Creating a basic spec file..."
+            pyi-makespec --name FiatTradeCalculator --onefile calculator.py
+            echo "Generated spec file contents:"
+            Get-Content FiatTradeCalculator.spec
+          }
+
+      - name: Verify spec file (Linux/macOS)
+        if: ${{ runner.os != 'Windows' }}
         run: |
           echo "Checking spec file..."
           if [ -f "FiatTradeCalculator.spec" ]; then
@@ -88,8 +104,23 @@ jobs:
             cat FiatTradeCalculator.spec
           fi
 
-      - name: Build executable (Windows/Linux)
-        if: ${{ runner.os != 'macOS' }}
+      - name: Build executable (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        run: |
+          echo "Current directory: $(Get-Location)"
+          echo "Files in current directory:"
+          Get-ChildItem
+          echo "Checking if spec file exists:"
+          if (Test-Path "FiatTradeCalculator.spec") {
+            echo "Spec file found, using it..."
+            pyinstaller FiatTradeCalculator.spec
+          } else {
+            echo "Spec file not found, using command-line approach..."
+            pyinstaller --name FiatTradeCalculator --onefile --hidden-import yfinance --hidden-import curl_cffi --hidden-import requests --hidden-import pandas --hidden-import numpy --hidden-import scipy --hidden-import lxml --hidden-import bs4 --hidden-import html5lib --collect-all yfinance --collect-all curl_cffi calculator.py
+          }
+
+      - name: Build executable (Linux)
+        if: ${{ runner.os == 'Linux' }}
         run: |
           echo "Current directory: $(pwd)"
           echo "Files in current directory:"
