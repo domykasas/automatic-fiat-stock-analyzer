@@ -22,6 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Streamlined session management for optimal speed
 - Improved overall application performance
 
+## [1.0.9] - 2024-12-19
+
+### Added
+- Simplified project structure by removing CI/CD workflows
+- Cleaner codebase without build automation dependencies
+
+### Changed
+- Bumped version to 1.0.9
+- Removed GitHub Actions workflows and PyInstaller spec file
+- Streamlined project to focus on core application functionality
+
 ## [Unreleased]
 
 ### Added

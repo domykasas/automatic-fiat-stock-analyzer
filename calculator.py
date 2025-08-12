@@ -8,8 +8,8 @@ Always consult a professional financial advisor before making any investment dec
 """
 
 # Version information - single source of truth
-__version__ = "1.0.8"
-__version_info__ = (1, 0, 8)
+__version__ = "1.0.9"
+__version_info__ = (1, 0, 9)
 VERSION = __version__
 
 import FreeSimpleGUI as sg

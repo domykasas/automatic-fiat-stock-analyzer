@@ -110,8 +110,8 @@ If you encounter any issues:
 
 ## Current Version
 
-**Version**: 1.0.8
+**Version**: 1.0.9
 
-**Latest Improvements**: Further optimized rate limiting system for maximum performance without delays.
+**Latest Improvements**: Simplified project structure and streamlined codebase for better maintainability.
 
 For the latest updates and release notes, see the [Releases page](https://github.com/domykasas/automatic-fiat-stock-analyzer/releases).
