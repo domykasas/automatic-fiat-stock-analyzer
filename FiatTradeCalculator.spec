@@ -85,7 +85,7 @@ app = BUNDLE(
         'NSHighResolutionCapable': 'True',
         'CFBundleDisplayName': 'Fiat Trade Calculator',
         'CFBundleName': 'Fiat Trade Calculator',
-        'CFBundleVersion': '0.1.10',
-        'CFBundleShortVersionString': '0.1.10',
+        'CFBundleVersion': '1.0.0',
+        'CFBundleShortVersionString': '1.0.0',
     },
 )

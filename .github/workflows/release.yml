@@ -114,9 +114,13 @@ jobs:
           if (Test-Path "FiatTradeCalculator.spec") {
             echo "Spec file found, using it..."
             pyinstaller FiatTradeCalculator.spec
+            # Rename to include version
+            if (Test-Path "dist/FiatTradeCalculator.exe") {
+              Rename-Item "dist/FiatTradeCalculator.exe" "dist/FiatTradeCalculator-${{ env.VERSION }}.exe"
+            }
           } else {
             echo "Spec file not found, using command-line approach..."
-            pyinstaller --name FiatTradeCalculator --onefile --hidden-import yfinance --hidden-import curl_cffi --hidden-import requests --hidden-import pandas --hidden-import numpy --hidden-import scipy --hidden-import lxml --hidden-import bs4 --hidden-import html5lib --collect-all yfinance --collect-all curl_cffi calculator.py
+            pyinstaller --name "FiatTradeCalculator-${{ env.VERSION }}" --onefile --hidden-import yfinance --hidden-import curl_cffi --hidden-import requests --hidden-import pandas --hidden-import numpy --hidden-import scipy --hidden-import lxml --hidden-import bs4 --hidden-import html5lib --collect-all yfinance --collect-all curl_cffi calculator.py
           }
 
       - name: Build executable (Linux)
@@ -129,9 +133,13 @@ jobs:
           if [ -f "FiatTradeCalculator.spec" ]; then
             echo "Spec file found, using it..."
             pyinstaller FiatTradeCalculator.spec
+            # Rename to include version
+            if [ -f "dist/FiatTradeCalculator" ]; then
+              mv "dist/FiatTradeCalculator" "dist/FiatTradeCalculator-${{ env.VERSION }}"
+            fi
           else
             echo "Spec file not found, using command-line approach..."
-            pyinstaller --name FiatTradeCalculator --onefile --hidden-import yfinance --hidden-import curl_cffi --hidden-import requests --hidden-import pandas --hidden-import numpy --hidden-import scipy --hidden-import lxml --hidden-import bs4 --hidden-import html5lib --collect-all yfinance --collect-all curl_cffi calculator.py
+            pyinstaller --name "FiatTradeCalculator-${{ env.VERSION }}" --onefile --hidden-import yfinance --hidden-import curl_cffi --hidden-import requests --hidden-import pandas --hidden-import numpy --hidden-import scipy --hidden-import lxml --hidden-import bs4 --hidden-import html5lib --collect-all yfinance --collect-all curl_cffi calculator.py
           fi
 
       - name: Build app bundle (macOS)
@@ -144,9 +152,13 @@ jobs:
           if [ -f "FiatTradeCalculator.spec" ]; then
             echo "Spec file found, using it..."
             pyinstaller FiatTradeCalculator.spec
+            # Rename to include version
+            if [ -d "dist/FiatTradeCalculator.app" ]; then
+              mv "dist/FiatTradeCalculator.app" "dist/FiatTradeCalculator-${{ env.VERSION }}.app"
+            fi
           else
             echo "Spec file not found, using command-line approach..."
-            pyinstaller --name FiatTradeCalculator --windowed --hidden-import yfinance --hidden-import curl_cffi --hidden-import requests --hidden-import pandas --hidden-import numpy --hidden-import scipy --hidden-import lxml --hidden-import bs4 --hidden-import html5lib --collect-all yfinance --collect-all curl_cffi calculator.py
+            pyinstaller --name "FiatTradeCalculator-${{ env.VERSION }}" --windowed --hidden-import yfinance --hidden-import curl_cffi --hidden-import requests --hidden-import pandas --hidden-import numpy --hidden-import scipy --hidden-import lxml --hidden-import bs4 --hidden-import html5lib --collect-all yfinance --collect-all curl_cffi calculator.py
           fi
 
       - name: Test executable (Windows)
@@ -154,13 +166,13 @@ jobs:
         run: |
           echo "Testing executable..."
           echo "Checking if executable exists..."
-          if (Test-Path "dist/FiatTradeCalculator.exe") {
+          if (Test-Path "dist/FiatTradeCalculator-${{ env.VERSION }}.exe") {
             echo "Executable found, testing with timeout..."
             # Use Job with timeout to prevent infinite hanging
             $job = Start-Job -ScriptBlock { 
               param($exePath)
               & $exePath --help
-            } -ArgumentList "dist/FiatTradeCalculator.exe"
+            } -ArgumentList "dist/FiatTradeCalculator-${{ env.VERSION }}.exe"
             
             # Wait for job with timeout
             $timeout = 30
@@ -189,7 +201,7 @@ jobs:
             
             Remove-Job -Job $job -ErrorAction SilentlyContinue
           } else {
-            echo "Executable not found at dist/FiatTradeCalculator.exe"
+            echo "Executable not found at dist/FiatTradeCalculator-${{ env.VERSION }}.exe"
           }
 
       - name: Test executable (Linux)
@@ -197,27 +209,32 @@ jobs:
         run: |
           echo "Testing executable..."
           echo "Checking if executable exists..."
-          if [ -f "dist/FiatTradeCalculator" ]; then
+          if [ -f "dist/FiatTradeCalculator-${{ env.VERSION }}" ]; then
             echo "Executable found, testing with timeout..."
             # Use timeout to prevent infinite hanging
-            timeout 30s ./dist/FiatTradeCalculator --help || echo "Executable test completed"
+            timeout 30s "./dist/FiatTradeCalculator-${{ env.VERSION }}" --help || echo "Executable test completed"
           else
-            echo "Executable not found at dist/FiatTradeCalculator"
+            echo "Executable not found at dist/FiatTradeCalculator-${{ env.VERSION }}"
           fi
 
       - name: Test app bundle (macOS)
         if: ${{ runner.os == 'macOS' }}
         run: |
           echo "Testing app bundle..."
-          ./dist/FiatTradeCalculator.app/Contents/MacOS/FiatTradeCalculator --help || echo "App bundle built successfully"
+          if [ -d "dist/FiatTradeCalculator-${{ env.VERSION }}.app" ]; then
+            echo "App bundle found, testing with timeout..."
+            timeout 30s "./dist/FiatTradeCalculator-${{ env.VERSION }}.app/Contents/MacOS/FiatTradeCalculator-${{ env.VERSION }}" --help || echo "App bundle test completed"
+          else
+            echo "App bundle not found at dist/FiatTradeCalculator-${{ env.VERSION }}.app"
+          fi
 
       - name: Verify build artifacts (Windows)
         if: ${{ runner.os == 'Windows' }}
         run: |
           echo "Build artifacts:"
           Get-ChildItem dist/
-          if (Test-Path "dist/FiatTradeCalculator.exe") {
-            $size = (Get-Item "dist/FiatTradeCalculator.exe").Length
+          if (Test-Path "dist/FiatTradeCalculator-${{ env.VERSION }}.exe") {
+            $size = (Get-Item "dist/FiatTradeCalculator-${{ env.VERSION }}.exe").Length
             echo "Windows executable size: $([math]::Round($size/1MB, 2)) MB"
           }
 
@@ -226,30 +243,30 @@ jobs:
         run: |
           echo "Build artifacts:"
           ls -la dist/
-          if [ -f "dist/FiatTradeCalculator" ]; then
-            echo "Executable size: $(du -h dist/FiatTradeCalculator)"
-            echo "Executable type: $(file dist/FiatTradeCalculator)"
+          if [ -f "dist/FiatTradeCalculator-${{ env.VERSION }}" ]; then
+            echo "Executable size: $(du -h dist/FiatTradeCalculator-${{ env.VERSION }})"
+            echo "Executable type: $(file dist/FiatTradeCalculator-${{ env.VERSION }})"
           fi
-          if [ -f "dist/FiatTradeCalculator.exe" ]; then
-            echo "Windows executable size: $(du -h dist/FiatTradeCalculator.exe)"
+          if [ -f "dist/FiatTradeCalculator-${{ env.VERSION }}.exe" ]; then
+            echo "Windows executable size: $(du -h dist/FiatTradeCalculator-${{ env.VERSION }}.exe)"
           fi
-          if [ -d "dist/FiatTradeCalculator.app" ]; then
-            echo "macOS app bundle size: $(du -sh dist/FiatTradeCalculator.app)"
+          if [ -d "dist/FiatTradeCalculator-${{ env.VERSION }}.app" ]; then
+            echo "macOS app bundle size: $(du -sh dist/FiatTradeCalculator-${{ env.VERSION }}.app)"
           fi
 
       - name: Package artifact (Linux)
         if: ${{ runner.os == 'Linux' }}
         run: |
           mkdir -p dist_pkg
-          cp dist/FiatTradeCalculator dist_pkg/
-          tar -C dist_pkg -czf FiatTradeCalculator-${{ env.VERSION }}-Linux-x64.tar.gz .
+          cp "dist/FiatTradeCalculator-${{ env.VERSION }}" dist_pkg/
+          tar -C dist_pkg -czf "FiatTradeCalculator-${{ env.VERSION }}-Linux-x64.tar.gz" .
 
       - name: Package artifacts (Windows)
         if: ${{ runner.os == 'Windows' }}
         run: |
-          $exe = "FiatTradeCalculator-$Env:VERSION-Windows-x64.exe"
-          Copy-Item dist/FiatTradeCalculator.exe $exe
-          Compress-Archive -Path dist/FiatTradeCalculator.exe -DestinationPath "FiatTradeCalculator-$Env:VERSION-Windows-x64.zip"
+          $exe = "FiatTradeCalculator-${{ env.VERSION }}-Windows-x64.exe"
+          Copy-Item "dist/FiatTradeCalculator-${{ env.VERSION }}.exe" $exe
+          Compress-Archive -Path "dist/FiatTradeCalculator-${{ env.VERSION }}.exe" -DestinationPath "FiatTradeCalculator-${{ env.VERSION }}-Windows-x64.zip"
 
       - name: Package artifacts (macOS)
         if: ${{ runner.os == 'macOS' }}
@@ -259,10 +276,10 @@ jobs:
           ls -la dist/
           echo "Looking for app bundle..."
           find dist/ -name "*.app" -type d
-          if [ -d "dist/FiatTradeCalculator.app" ]; then
-            echo "App bundle found at dist/FiatTradeCalculator.app"
-            ditto -c -k --sequesterRsrc --keepParent dist/FiatTradeCalculator.app FiatTradeCalculator-${{ env.VERSION }}-macOS-x64.zip
-            hdiutil create -volname "FiatTradeCalculator" -srcfolder "dist/FiatTradeCalculator.app" -ov -format UDZO FiatTradeCalculator-${{ env.VERSION }}-macOS-x64.dmg
+          if [ -d "dist/FiatTradeCalculator-${{ env.VERSION }}.app" ]; then
+            echo "App bundle found at dist/FiatTradeCalculator-${{ env.VERSION }}.app"
+            ditto -c -k --sequesterRsrc --keepParent "dist/FiatTradeCalculator-${{ env.VERSION }}.app" "FiatTradeCalculator-${{ env.VERSION }}-macOS-x64.zip"
+            hdiutil create -volname "FiatTradeCalculator" -srcfolder "dist/FiatTradeCalculator-${{ env.VERSION }}.app" -ov -format UDZO "FiatTradeCalculator-${{ env.VERSION }}-macOS-x64.dmg"
           else
             echo "App bundle not found at expected location, checking for alternatives..."
             APP_PATH=$(find dist/ -name "*.app" -type d | head -1)
