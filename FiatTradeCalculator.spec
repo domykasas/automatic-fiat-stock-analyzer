@@ -1,5 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+# Import version from version.py
+import version
+
 block_cipher = None
 
 a = Analysis(
@@ -119,7 +122,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='FiatTradeCalculator-1.0.4',
+    name=f'FiatTradeCalculator-{version.__version__}',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -137,14 +140,14 @@ exe = EXE(
 # macOS app bundle
 app = BUNDLE(
     exe,
-    name='FiatTradeCalculator-1.0.4.app',
+    name=f'FiatTradeCalculator-{version.__version__}.app',
     icon=None,
     bundle_identifier=None,
     info_plist={
         'NSHighResolutionCapable': 'True',
         'CFBundleDisplayName': 'Fiat Trade Calculator',
         'CFBundleName': 'Fiat Trade Calculator',
-        'CFBundleVersion': '1.0.4',
-        'CFBundleShortVersionString': '1.0.4',
+        'CFBundleVersion': version.__version__,
+        'CFBundleShortVersionString': version.__version__,
     },
 )

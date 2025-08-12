@@ -1,102 +1,115 @@
-## 🚀 Automatic Fiat Stock Analyzer ("Fiat Trade Calculator")
+# Fiat Trade Calculator
 
-A desktop GUI tool that automatically scans a broad list of popular U.S. stocks (S&P 500 subset + popular tech tickers) and ranks them by a simple 3-point criteria using options-implied data from Yahoo Finance.
+A powerful stock analysis tool that provides automated analysis of stock options and trading strategies using Yahoo Finance data.
 
-> This app is for educational and research use only. It does not provide investment advice.
+## Features
 
-### ✨ Key features
-- 🔎 **Automatic scan**: Analyzes ~100 widely traded tickers with one click
-- 📡 **Live market data**: Pulls quotes, options chains, and volumes via `yfinance`
-- 🧮 **Options-driven metrics**:
-  - 📈 **IV30/RV30** using Yang–Zhang realized volatility
-  - 📉 **Term structure slope** between near and ~45 DTE expiries
-  - 🎯 **Expected move** from ATM straddle mid-price on the first considered expiry
-- ⭐ **Simple scoring (0–3)** and an at-a-glance recommendation label
-- 🖥️ **Responsive UI** with progress bar and real-time console logs
+- **Automated Stock Analysis**: Analyze multiple stocks simultaneously with intelligent filtering
+- **Yahoo Finance Integration**: Real-time data fetching with rate limit handling
+- **Options Analysis**: Comprehensive options chain analysis and filtering
+- **Cross-Platform**: Available for Windows, macOS, and Linux
+- **User-Friendly GUI**: Built with PySimpleGUI for easy interaction
 
-### 🧠 How scoring works (high level)
-For each ticker:
-- 🏁 **Scored criteria (1 point each):**
-  - 📊 **Volume filter**: 30D average volume ≥ 1,500,000
-  - ⚡ **Volatility premium**: IV30/RV30 ≥ 1.25 (RV via Yang–Zhang)
-  - 📉 **Term structure**: Slope between earliest included expiry and ~45 DTE ≤ -0.00406
-- ℹ️ **Informational (not scored):**
-  - 🎯 **Expected move**: Displayed when ATM straddle mid can be computed
+## Installation
 
-Total score is the number of scored criteria met (0–3). "Expected move" does not affect the score. The UI maps score to a visual recommendation.
+### From Source
 
-🧭 In simple terms:
-- 3 points: Strong Buy (🔥)
-- 2 points: Buy (✅)
-- 1 point: Consider (⚠️)
-- 0 points: Avoid (❌)
-
-A stock earns 1 point for each check it passes: volume, IV vs RV, and term-structure slope.
-
-### 🧰 Requirements
-- 🐍 **Python**: 3.10–3.12 (NumPy 2.x and SciPy ≥ 1.15 require Python ≥ 3.10)
-- 🖥️ **OS**: Windows, macOS, or Linux
-- 🌐 **Network access**: Required to reach Yahoo Finance and Wikipedia
-
-Python dependencies (also in `requirements.txt`):
-```
-FreeSimpleGUI==5.1.1
-numpy==2.1
-scipy==1.15.1
-yfinance==0.2.54
-requests==2.31.0
-curl_cffi==0.6.2
-pandas==2.2.2
-lxml==5.2.2
+1. Clone the repository:
+```bash
+git clone https://github.com/domykasas/automatic-fiat-stock-analyzer.git
+cd automatic-fiat-stock-analyzer
 ```
 
-### 🛠️ Install
-1. Create and activate a virtual environment
-   - Windows (PowerShell):
-     ```powershell
-     python -m venv .venv
-     .venv\Scripts\Activate.ps1
-     ```
-   - macOS/Linux:
-     ```bash
-     python -m venv .venv
-     source .venv/bin/activate
-     ```
-2. Install dependencies
-   ```bash
-   pip install -U pip setuptools wheel
-   pip install -r requirements.txt
-   ```
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
 
-### ▶️ Run
+3. Run the application:
 ```bash
 python calculator.py
 ```
-Then click "Start Auto Analysis". Keep the window open during analysis. Progress and helpful logs also appear in the terminal.
 
-### 📝 Notes and data sources
-- 🏷️ **Tickers**: Fetched from Wikipedia’s S&P 500 page when available; otherwise falls back to a built-in popular list
-- 💹 **Options/quotes**: Pulled via `yfinance` from Yahoo Finance
-- 🧩 **Interpolation**: Linear spline over ATM IVs across expirations using SciPy
-- 🖥️ **GUI**: Built with `FreeSimpleGUI`
+### Pre-built Binaries
 
-### 🧯 Troubleshooting
-- 🔧 **SciPy/NumPy install issues**: Ensure a 64-bit Python and an up-to-date `pip`/`setuptools`/`wheel`.
-- 🚦 **Rate limits or missing data**: Yahoo Finance may throttle. Re-run later or reduce frequency.
-- 📅 **"No options found" / "Not enough option data"**: Some tickers or sessions won’t have chains or expiries meeting the ~45 DTE requirement.
-- 🌐 **Network/SSL errors**: Confirm internet connectivity and that corporate proxies/firewalls allow access to Yahoo/Wikipedia.
-- 🖼️ **Emoji rendering**: If UI emojis look odd, it’s just a font/OS rendering quirk; functionality is unaffected.
+Download the latest release binaries from the [Releases page](https://github.com/domykasas/automatic-fiat-stock-analyzer/releases):
 
-### ⚠️ Limitations
-- 🌐 Uses end-user network and public sources; stability and coverage can vary
-- 🌍 Not all non-U.S. symbols are supported
-- 🧪 Results are heuristic and simplified; they may not reflect tradable liquidity or spreads
+- **Windows**: `FiatTradeCalculator-{version}-Windows-x64.exe`
+- **macOS**: `FiatTradeCalculator-{version}-macOS-x64.dmg`
+- **Linux**: `FiatTradeCalculator-{version}-Linux-x64.tar.gz`
 
-### ⚖️ Disclaimer
-This software is provided solely for educational and research purposes. It is not intended to provide investment advice. The developers are not financial advisors and accept no responsibility for any financial decisions or losses resulting from use of this software. Always consult a professional financial advisor before making any investment decisions.
+## Usage
 
-### 🙏 Acknowledgments
-- **Volatility Vibes**: Credit for the YouTube video ["Upgrading Options Scanner Script" (YouTube)](https://www.youtube.com/watch?v=oW6MHjzxHpU), which inspired and informed this project. This script was created by upgrading and adapting the approach demonstrated in that video.
+1. Launch the application
+2. Click "Start Auto Analysis" to begin
+3. The tool will automatically:
+   - Fetch stock data from Yahoo Finance
+   - Analyze options chains
+   - Filter for profitable opportunities
+   - Display results in an organized format
 
-### 📄 License
-No license specified. If you plan to distribute or modify, add a license to this repository.
+## Requirements
+
+- Python 3.11+
+- Internet connection for Yahoo Finance data
+- Sufficient RAM for large datasets
+
+## Dependencies
+
+- `yfinance`: Yahoo Finance data fetching
+- `curl_cffi`: HTTP requests with browser impersonation
+- `pandas`: Data manipulation and analysis
+- `numpy`: Numerical computations
+- `scipy`: Scientific computing functions
+- `PySimpleGUI`: User interface
+- `lxml`, `bs4`, `html5lib`: HTML parsing
+
+## Development
+
+### Building from Source
+
+The project uses PyInstaller for creating standalone executables:
+
+```bash
+# Install PyInstaller
+pip install pyinstaller
+
+# Build executable
+pyinstaller FiatTradeCalculator.spec
+```
+
+### Version Management
+
+The project uses a centralized version system:
+- **`version.py`**: Single source of truth for version information
+- **`CHANGELOG.md`**: Comprehensive change history following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) guidelines
+- **Semantic Versioning**: Follows [SemVer 2.0.0](https://semver.org/spec/v2.0.0.html) specification
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Update the CHANGELOG.md if needed
+5. Submit a pull request
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a detailed history of changes and improvements.
+
+## License
+
+This project is open source and available under the MIT License.
+
+## Support
+
+If you encounter any issues:
+1. Check the [CHANGELOG.md](CHANGELOG.md) for known issues
+2. Review the [Issues](https://github.com/domykasas/automatic-fiat-stock-analyzer/issues) page
+3. Create a new issue with detailed information about your problem
+
+## Current Version
+
+**Version**: 1.0.5
+
+For the latest updates and release notes, see the [Releases page](https://github.com/domykasas/automatic-fiat-stock-analyzer/releases).

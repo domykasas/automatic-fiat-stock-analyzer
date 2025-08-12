@@ -39,12 +39,28 @@ jobs:
           script: |
             const ref = process.env.GITHUB_REF || '';
             const refName = process.env.GITHUB_REF_NAME || '';
-            let version = '1.0.4'; // Default version for main branch
+            
+            // Read version from version.py file
+            const fs = require('fs');
+            let version = '1.0.5'; // Default fallback
+            
+            try {
+              const versionContent = fs.readFileSync('version.py', 'utf8');
+              const versionMatch = versionContent.match(/__version__\s*=\s*["']([^"']+)["']/);
+              if (versionMatch) {
+                version = versionMatch[1];
+              }
+            } catch (error) {
+              console.log('Could not read version.py, using default version');
+            }
+            
+            // Override with tag version if this is a tagged release
             if (ref.startsWith('refs/tags/v')) {
               version = refName.replace(/^v/, '');
             }
+            
             core.exportVariable('VERSION', version);
-            core.info(`VERSION=${version}`)
+            core.info(`VERSION=${version}`);
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -410,10 +426,10 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.4
+          tag_name: v${{ env.VERSION }}
           target_commitish: ${{ github.sha }}
           make_latest: true
-          name: Release v1.0.4
+          name: Release v${{ env.VERSION }}
           files: |
             artifacts/**/FiatTradeCalculator-*-Linux-x64.tar.gz
             artifacts/**/FiatTradeCalculator-*-Windows-x64.zip
